@@ -22,6 +22,7 @@ contract ReKaUSDVault is Ownable2Step, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // Constants and parameters
+    uint256 public constant WEEK = 7 days;
     uint16 public constant WITHDRAW_FEE_BPS = 50; // 0.5%
     uint16 public constant BPS_DENOMINATOR = 10_000;
 
@@ -38,6 +39,7 @@ contract ReKaUSDVault is Ownable2Step, Pausable, ReentrancyGuard {
     uint64 public currentEpoch; // starts at 0
     uint64 public epochDuration; // seconds
     uint64 public epochStart; // timestamp when epoch 0 starts
+    uint64 public nextRolloverAt; // timestamp when next rollover is due
 
     // Per-user deposit amounts for the current epoch only
     mapping(address => uint256) public currentEpochDeposits;
@@ -63,6 +65,7 @@ contract ReKaUSDVault is Ownable2Step, Pausable, ReentrancyGuard {
     error ZeroAddress();
     error NotOperator();
     error InvalidEpochParams();
+    error RolloverNotDue();
 
     constructor(
         address _usdt,
@@ -81,9 +84,11 @@ contract ReKaUSDVault is Ownable2Step, Pausable, ReentrancyGuard {
         adapter = IBridgeAdapter(_adapter);
         feeRecipient = _feeRecipient;
 
-        epochDuration = _epochDuration;
+        // Fixed weekly schedule anchored to deployment
+        epochDuration = uint64(WEEK);
         epochStart = uint64(block.timestamp);
         currentEpoch = 0;
+        nextRolloverAt = uint64(block.timestamp + WEEK);
     }
 
     // Admin
@@ -190,39 +195,56 @@ contract ReKaUSDVault is Ownable2Step, Pausable, ReentrancyGuard {
     // Epoch management
     function rolloverEpoch() external nonReentrant whenNotPaused {
         if (msg.sender != operator) revert NotOperator();
+        if (!canRollover()) revert RolloverNotDue();
         _rollover();
+    }
+
+    function canRollover() public view returns (bool) {
+        return block.timestamp >= nextRolloverAt;
+    }
+
+    // Nice-to-haves
+    function nextWindow() external view returns (uint64) {
+        return nextRolloverAt;
+    }
+
+    function timeToRollover() external view returns (uint64) {
+        if (block.timestamp >= nextRolloverAt) return 0;
+        return nextRolloverAt - uint64(block.timestamp);
     }
 
     // Internal helpers
     function _rollover() internal {
-        // Advance epoch by exactly 1 (weekly cadence); do not rely on block time to skip
+        // Advance epoch by exactly 1 (weekly cadence)
         uint64 prevEpoch = currentEpoch;
-        uint64 newEpoch = prevEpoch + 1;
-        currentEpoch = newEpoch;
 
-        // Safety: ensure we keep enough liquidity to cover claimables now and newly promoted pending
-        uint256 vaultBal = usdt.balanceOf(address(this));
-        uint256 queuedToPay = totalClaimablePool + totalPendingNextPool; // claimables incl. to-be-promoted
-        require(vaultBal >= queuedToPay, "insufficient for claims");
+        // 1) Finalize previous-epoch queued withdrawals → move to claimable
+        _finalizePendingWithdrawals();
 
-        // Determine bridged amount: remaining balance after reserving for claims
-        uint256 bridgedAmount = vaultBal - queuedToPay;
+        // 2) Bridge remainder after reserving claimables
+        uint256 bridgedAmount = _bridgeRemainder();
 
-        // Bridge out via adapter (stub just emits event)
-        if (bridgedAmount > 0) {
-            adapter.bridgeUSDT(bridgedAmount, newEpoch);
-        } else {
-            adapter.bridgeUSDT(0, newEpoch);
-        }
+        // 3) Advance schedule by exactly one week
+        currentEpoch = prevEpoch + 1;
+        nextRolloverAt = nextRolloverAt + epochDuration; // fixed, no drift
 
-        // Promote current epoch's pending to claimable pool (lazy per-user; totals updated here)
+        emit EpochRollover(prevEpoch, currentEpoch, bridgedAmount, totalClaimablePool);
+    }
+
+    function _finalizePendingWithdrawals() internal {
         if (totalPendingNextPool > 0) {
+            // Move aggregate to claimable; per-user amounts are harvested lazily
             totalClaimablePool += totalPendingNextPool;
-            // reset pending next aggregate; individual user balances will be harvested lazily on next interaction
             totalPendingNextPool = 0;
         }
+    }
 
-        emit EpochRollover(prevEpoch, newEpoch, bridgedAmount, queuedToPay);
+    function _bridgeRemainder() internal returns (uint256 bridgedAmount) {
+        uint256 vaultBal = usdt.balanceOf(address(this));
+        uint256 reserveForClaims = totalClaimablePool;
+        require(vaultBal >= reserveForClaims, "insufficient for claims");
+        bridgedAmount = vaultBal - reserveForClaims;
+        adapter.bridgeUSDT(bridgedAmount, currentEpoch + 1);
     }
 
     function _epochIndexNow() internal view returns (uint64) {

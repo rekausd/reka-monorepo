@@ -50,6 +50,8 @@ contract ReKaUSDVaultTest is Test {
     }
 
     function _rollover() internal {
+        // ensure due time
+        vm.warp(vault.nextWindow());
         vm.prank(operator);
         vault.rolloverEpoch();
     }
