@@ -1,0 +1,14 @@
+# Foundry
+lib/
+out/
+build/
+cache/
+broadcast/
+*.cache
+*.log
+
+# Node (if ever used)
+node_modules/
+
+# macOS
+.DS_Store

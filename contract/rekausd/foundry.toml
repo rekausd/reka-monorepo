@@ -1,0 +1,19 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "0.8.24"
+optimizer = true
+optimizer_runs = 20000
+ffi = false
+fs_permissions = []
+
+# RPC placeholders (KAIA)
+# [rpc_endpoints]
+# kaia_mainnet = "https://kaiascan.io/rpc"
+# kaia_testnet = "https://kairos.kaiascan.io/rpc"
+
+[fmt]
+line_length = 100
+multiline_func_header = "params_first"
+ignore = []
