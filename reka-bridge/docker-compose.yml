@@ -1,0 +1,8 @@
+services:
+  bridge:
+    build: .
+    env_file: .env
+    volumes:
+      - ./bridge-state.sqlite:/app/bridge-state.sqlite
+    ports:
+      - "3000:3000"
