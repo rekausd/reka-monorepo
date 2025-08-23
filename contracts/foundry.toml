@@ -1,0 +1,13 @@
+[profile.default]
+solc_version = "0.8.24"
+optimizer = true
+optimizer_runs = 20000
+ffi = false
+fs_permissions = []
+
+[fmt]
+line_length = 100
+
+# make forge happy when scripts read .env (optional)
+# [rpc_endpoints]
+# mainnet = "${MAINNET_RPC_URL}"
