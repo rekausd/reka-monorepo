@@ -1,0 +1,145 @@
+name: Deploy KAIA & Sync Vercel
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      skip_deploy:
+        description: 'Skip contract deployment (only sync existing addresses)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  deploy-and-sync:
+    runs-on: ubuntu-latest
+    env:
+      KAIA_RPC_URL: ${{ secrets.KAIA_RPC_URL }}
+      PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      KAIA_PERMIT2: "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Cache Forge dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            contracts/cache
+            contracts/out
+            contracts/lib
+          key: ${{ runner.os }}-forge-${{ hashFiles('contracts/foundry.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-forge-
+
+      - name: Deploy KAIA Contracts
+        if: ${{ github.event.inputs.skip_deploy != 'true' }}
+        run: |
+          echo "🚀 Deploying KAIA contracts to Kairos testnet..."
+          chmod +x scripts/deploy-kaia-all.sh
+          ./scripts/deploy-kaia-all.sh
+        env:
+          FOUNDRY_PROFILE: default
+
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: deployment-artifacts
+          path: deployments/kaia-kairos-all.json
+          retention-days: 30
+
+      - name: Verify deployment file exists
+        run: |
+          if [ ! -f "deployments/kaia-kairos-all.json" ]; then
+            echo "❌ Deployment file not found!"
+            exit 1
+          fi
+          echo "✅ Deployment file found:"
+          cat deployments/kaia-kairos-all.json
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Sync environment variables to Vercel
+        run: |
+          echo "🔄 Syncing contract addresses to Vercel..."
+          chmod +x scripts/vercel-sync-env.sh
+          ./scripts/vercel-sync-env.sh deployments/kaia-kairos-all.json
+
+      - name: Summary
+        run: |
+          echo "## 🎉 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "deployments/kaia-kairos-all.json" ]; then
+            echo "### Contract Addresses (KAIA Kairos)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Contract | Address |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
+            echo "| USDT | \`$(jq -r '.usdt' deployments/kaia-kairos-all.json)\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| rkUSDT | \`$(jq -r '.rkUSDT' deployments/kaia-kairos-all.json)\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Vault | \`$(jq -r '.vault' deployments/kaia-kairos-all.json)\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Permit2 | \`$(jq -r '.permit2' deployments/kaia-kairos-all.json)\` |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Network Info" >> $GITHUB_STEP_SUMMARY
+            echo "- **Chain ID**: 1001 (KAIA Kairos Testnet)" >> $GITHUB_STEP_SUMMARY
+            echo "- **RPC URL**: $(jq -r '.kaiaRpc' deployments/kaia-kairos-all.json)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Timestamp**: $(jq -r '.timestamp' deployments/kaia-kairos-all.json)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ Contracts deployed to KAIA Kairos" >> $GITHUB_STEP_SUMMARY
+          echo "2. ✅ Vercel environment variables updated" >> $GITHUB_STEP_SUMMARY
+          echo "3. ✅ Production redeployment triggered" >> $GITHUB_STEP_SUMMARY
+          echo "4. 🔗 Visit your Vercel URL to see the updated app" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const deploymentData = JSON.parse(fs.readFileSync('deployments/kaia-kairos-all.json', 'utf8'));
+            
+            const comment = `## 🚀 KAIA Contracts Deployed
+            
+            **Network**: KAIA Kairos Testnet (Chain ID: 1001)
+            
+            | Contract | Address |
+            |----------|---------|
+            | USDT | \`${deploymentData.usdt}\` |
+            | rkUSDT | \`${deploymentData.rkUSDT}\` |
+            | Vault | \`${deploymentData.vault}\` |
+            | Permit2 | \`${deploymentData.permit2}\` |
+            
+            **Vercel**: Environment variables synced and production redeployed ✅`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
