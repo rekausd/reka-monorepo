@@ -1,5 +1,5 @@
 {
-  "name": "reka-dashboard",
+  "name": "rekausd-kaia-frontend",
   "private": true,
   "version": "0.1.0",
   "scripts": {
@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@kaiachain/ethers-ext": "^1.0.0",
-    "klip-sdk": "^2.3.3",
     "ethers": "^6.13.2",
     "next": "^14.2.5",
     "react": "^18.3.1",
