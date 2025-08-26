@@ -1,17 +1,15 @@
 "use client";
-import React from "react";
-import useSWR from "swr";
-import { ethers } from "ethers";
-import { addr, kaiaProvider, VaultABI } from "@/lib/contracts";
 import { Card } from "@/components/Card";
+import React from "react";
+import { epochNow } from "@/lib/epoch";
 
-function Countdown({ nextAt }:{ nextAt:number }){
-  const [n, setN] = React.useState(Math.max(0, nextAt - Date.now()));
+function Countdown({ ms }:{ ms:number }){
+  const [left, setLeft] = React.useState(ms);
   React.useEffect(()=>{ 
-    const id = setInterval(()=>setN(Math.max(0, nextAt - Date.now())), 1000); 
+    const id = setInterval(()=>setLeft((p)=>Math.max(0,p-1000)), 1000); 
     return ()=>clearInterval(id); 
-  }, [nextAt]);
-  const s = Math.floor(n/1000), d=Math.floor(s/86400), h=Math.floor((s%86400)/3600), m=Math.floor((s%3600)/60), sc=s%60;
+  },[]);
+  const s = Math.floor(left/1000), d=Math.floor(s/86400), h=Math.floor((s%86400)/3600), m=Math.floor((s%3600)/60), sc=s%60;
   return (
     <div className="flex gap-2 mt-2">
       <span className="glass-panel px-3 py-1 rounded-lg text-sm font-medium">{d}d</span>
@@ -22,27 +20,23 @@ function Countdown({ nextAt }:{ nextAt:number }){
   );
 }
 
-async function fetchEpoch(){
-  const p = kaiaProvider();
-  const v = new ethers.Contract(addr.vault, VaultABI, p);
-  const [e0, e1] = await v.epochInfo().catch(()=>[0,0]);
-  return { epoch: Number(e0), nextAt: Number(e1)*1000 };
-}
-
 export function Epoch(){
-  const { data } = useSWR("epoch", fetchEpoch, { refreshInterval: 10000 });
+  const { epoch, end, remainingMs } = epochNow();
   return (
-    <Card title="Epoch Information">
+    <Card title="Epoch (10 days)">
       <div className="space-y-3">
         <div>
           <span className="text-sm text-pendle-gray-400">Current Epoch</span>
-          <div className="text-2xl font-bold text-gradient mt-1">{data?.epoch ?? "-"}</div>
+          <div className="text-2xl font-bold text-gradient mt-1">#{epoch}</div>
         </div>
         <div>
-          <span className="text-sm text-pendle-gray-400">Next Epoch In</span>
-          {data?.nextAt ? <Countdown nextAt={data.nextAt}/> : <div className="text-sm mt-1">-</div>}
+          <span className="text-sm text-pendle-gray-400">Ends in</span>
+          <Countdown ms={remainingMs}/>
         </div>
-        <div className="glass-panel p-3 rounded-lg space-y-1 mt-4">
+        <div className="glass-panel p-3 rounded-lg space-y-2 mt-4">
+          <div className="text-xs text-pendle-gray-400">
+            Settlement and withdrawals are processed at each epoch boundary.
+          </div>
           <div className="flex justify-between text-xs">
             <span className="text-pendle-gray-400">Deposit Fee</span>
             <span className="text-emerald-400 font-medium">0%</span>
@@ -52,8 +46,8 @@ export function Epoch(){
             <span className="text-yellow-400 font-medium">0.5%</span>
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-pendle-gray-400">Rollover</span>
-            <span className="font-medium">Weekly</span>
+            <span className="text-pendle-gray-400">Epoch Duration</span>
+            <span className="font-medium">10 days</span>
           </div>
         </div>
       </div>

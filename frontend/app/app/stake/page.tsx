@@ -1,12 +1,23 @@
 "use client";
 import { StakeBox } from "@/components/stake/StakeBox";
+import { WithdrawBox } from "@/components/stake/WithdrawBox";
 
 export default function Page(){
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="card p-8 rounded-2xl">
-        <h2 className="text-2xl font-bold text-gradient mb-6">Stake USDT</h2>
-        <StakeBox />
+    <div className="max-w-5xl mx-auto">
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Stake Card */}
+        <div className="card p-8 rounded-2xl">
+          <h2 className="text-2xl font-bold text-gradient mb-6">Stake USDT</h2>
+          <StakeBox />
+        </div>
+        
+        {/* Withdraw Card */}
+        <div className="card p-8 rounded-2xl">
+          <h2 className="text-2xl font-bold text-gradient mb-6">Withdraw</h2>
+          <div className="text-xs text-pendle-gray-400 mb-4">Queue withdrawals for next epoch</div>
+          <WithdrawBox />
+        </div>
       </div>
     </div>
   );

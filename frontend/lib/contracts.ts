@@ -28,8 +28,28 @@ export const ERC20 = [
 
 export const VaultABI = [
   "function deposit(uint256 amount) external",
-  "function depositWithPermit2(address token, uint256 amount, uint256 deadline, bytes permitSig) external",
-  "function totalStakedUSDT() view returns (uint256)",   // if not available, derive via accounting or expose in your contract
+  "function depositWithPermit2(address owner, address token, uint256 amount, uint256 sigDeadline, bytes permitSig) external",
+  
+  // --- Withdraw queue (try these in order) ---
+  "function requestWithdrawal(uint256 amount) external",             // preferred
+  "function queueWithdrawal(uint256 amount) external",               // alt
+  "function requestRedeem(uint256 amount) external",                 // alt
+  "function requestWithdraw(uint256 amount) external",               // alt spelling
+  
+  // --- Claim (try these in order) ---
+  "function claimWithdrawal() external",                             // preferred
+  "function claim() external",                                       // alt
+  "function withdraw() external",                                    // alt
+  "function claimRedeem() external",                                 // alt
+  
+  // --- Views (try these in order) ---
+  "function pendingWithdrawal(address) view returns (uint256 amount, uint64 epoch)",
+  "function getPendingWithdrawal(address) view returns (uint256 amount, uint64 epoch)",
+  "function pendingNext(address) view returns (uint256)",
+  "function claimable(address) view returns (uint256)",
+  
+  // Existing views
+  "function totalStakedUSDT() view returns (uint256)",
   "function epochInfo() view returns (uint64 currentEpoch, uint64 nextRolloverAt)"
 ];
 
