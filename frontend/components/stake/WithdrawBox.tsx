@@ -6,9 +6,9 @@ import { NumberFmt } from "@/components/Number";
 import { useToast } from "@/components/Toast";
 import { detectInjectedKaia } from "@/lib/wallet";
 import { epochNow } from "@/lib/epoch";
-import type { AppConfig } from "@/lib/appConfig";
+import { useAppConfig } from "@/hooks/useAppConfig";
 
-export function WithdrawBox({ config }: { config: AppConfig }){
+export function WithdrawBox(){
   const { epoch, end } = epochNow();
   const [addr0, setAddr] = useState("");
   const [dec, setDec] = useState(6);
@@ -27,9 +27,11 @@ export function WithdrawBox({ config }: { config: AppConfig }){
     try { return await provider.getSigner(); } catch { return null; }
   }, [provider]);
 
+  const config = useAppConfig();
+
   async function refresh(){
     const s = await signer;
-    if (!s) return;
+    if (!s || !config) return;
     
     try {
       const vaultContract = getVaultContract(config, s);
@@ -80,7 +82,7 @@ export function WithdrawBox({ config }: { config: AppConfig }){
     }
   }
 
-  useEffect(()=>{ refresh(); }, [signer, epoch]);
+  useEffect(()=>{ refresh(); }, [signer, epoch, config]);
 
   function parseAmt(): bigint {
     const v = Number(amt || "0");
@@ -92,6 +94,10 @@ export function WithdrawBox({ config }: { config: AppConfig }){
     const s = await signer;
     if (!s) {
       showErr("Please connect your wallet first");
+      return;
+    }
+    if (!config) {
+      showErr("Configuration not loaded");
       return;
     }
     
@@ -108,7 +114,7 @@ export function WithdrawBox({ config }: { config: AppConfig }){
     
     setBusy(true);
     try {
-      const vaultContract = new ethers.Contract(addr.vault, VaultABI, s);
+      const vaultContract = getVaultContract(config, s);
       
       // Try different method names in order
       let tx;
@@ -148,10 +154,14 @@ export function WithdrawBox({ config }: { config: AppConfig }){
       showErr("Please connect your wallet first");
       return;
     }
+    if (!config) {
+      showErr("Configuration not loaded");
+      return;
+    }
     
     setBusy(true);
     try {
-      const vaultContract = new ethers.Contract(addr.vault, VaultABI, s);
+      const vaultContract = getVaultContract(config, s);
       
       // Try different method names
       let tx;
@@ -188,6 +198,17 @@ export function WithdrawBox({ config }: { config: AppConfig }){
   const pendNum = Number(pendingAmt)/10**dec;
   const claimNum = Number(claimableAmt)/10**dec;
   const canClaim = (claimableAmt > 0n) || (pendingAmt > 0n && pendingEpoch < epoch);
+
+  if (!config) {
+    return (
+      <div className="space-y-5">
+        <div className="glass-panel p-4 rounded-xl">
+          <div className="text-sm text-pendle-gray-400 mb-1">Status</div>
+          <div className="text-sm font-medium animate-pulse">Loading configuration...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

@@ -1,9 +1,10 @@
 "use client";
 import useSWR from "swr";
 import { ethers } from "ethers";
-import { makeKaiaProvider, getUSDTContract, getRkUSDTContract, getVaultContract, ERC20, VaultABI } from "@/lib/contracts";
+import { makeKaiaProvider, getUSDTContract, getRkUSDTContract, getVaultContract } from "@/lib/contracts";
 import { Card } from "@/components/Card";
 import { NumberFmt } from "@/components/Number";
+import { useAppConfig } from "@/hooks/useAppConfig";
 import type { AppConfig } from "@/lib/appConfig";
 
 async function fetchTotals(cfg: AppConfig){
@@ -30,8 +31,28 @@ async function fetchTotals(cfg: AppConfig){
   };
 }
 
-export function Totals({ config }: { config: AppConfig }){
-  const { data } = useSWR(["totals", config], () => fetchTotals(config), { refreshInterval: 10000 });
+export function Totals(){
+  const cfg = useAppConfig();
+  
+  const { data } = useSWR(
+    cfg ? ["totals", cfg] : null, 
+    cfg ? () => fetchTotals(cfg) : null, 
+    { refreshInterval: 10000 }
+  );
+  
+  if (!cfg) {
+    return (
+      <div className="grid md:grid-cols-2 gap-5">
+        <Card title="Total Staked USDT (KAIA)">
+          <div className="text-3xl font-bold animate-pulse">Loading...</div>
+        </Card>
+        <Card title="rkUSDT Total Supply (KAIA)">
+          <div className="text-3xl font-bold animate-pulse">Loading...</div>
+        </Card>
+      </div>
+    );
+  }
+  
   return (
     <div className="grid md:grid-cols-2 gap-5">
       <Card title="Total Staked USDT (KAIA)">

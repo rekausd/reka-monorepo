@@ -6,9 +6,9 @@ import { signPermit2, formatPermitDetails, formatTransferDetails } from "@/lib/p
 import { useToast } from "@/components/Toast";
 import { NumberFmt } from "@/components/Number";
 import { detectInjectedKaia } from "@/lib/wallet";
-import type { AppConfig } from "@/lib/appConfig";
+import { useAppConfig } from "@/hooks/useAppConfig";
 
-export function StakeBox({ config }: { config: AppConfig }){
+export function StakeBox(){
   const [addr0, setAddr] = useState<string>("");
   const [dec, setDec] = useState(6);
   const [bal, setBal] = useState<bigint>(0n);
@@ -24,9 +24,11 @@ export function StakeBox({ config }: { config: AppConfig }){
     try { return await provider.getSigner(); } catch { return null; }
   }, [provider]);
 
+  const config = useAppConfig();
+
   async function refresh(){
     const s = await signer;
-    if (!s) return;
+    if (!s || !config) return;
     
     const usdt = getUSDTContract(config, s);
     const rkusdt = getRkUSDTContract(config, s);
@@ -41,7 +43,7 @@ export function StakeBox({ config }: { config: AppConfig }){
     setDec(Number(d)); setBal(b); setRkBal(rk);
   }
 
-  useEffect(()=>{ refresh(); }, [signer]);
+  useEffect(()=>{ refresh(); }, [signer, config]);
 
   function parseAmt(): bigint {
     const v = Number(amt || "0");
@@ -53,6 +55,10 @@ export function StakeBox({ config }: { config: AppConfig }){
     const s = await signer;
     if (!s) {
       showErr("Please connect your wallet first");
+      return;
+    }
+    if (!config) {
+      showErr("Configuration not loaded");
       return;
     }
     
@@ -147,6 +153,17 @@ export function StakeBox({ config }: { config: AppConfig }){
   const need = parseAmt();
   const balNum = Number(bal)/10**dec;
   const rkNum = Number(rkBal)/10**dec;
+
+  if (!config) {
+    return (
+      <div className="space-y-5">
+        <div className="glass-panel p-4 rounded-xl">
+          <div className="text-sm text-pendle-gray-400 mb-1">Status</div>
+          <div className="text-sm font-medium animate-pulse">Loading configuration...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
