@@ -1,0 +1,10 @@
+{
+  "kaiaRpc": "https://public-en-kairos.node.kaia.io",
+  "permit2": "0x000000000022d473030f116ddee9f6b43ac78ba3",
+  "usdt": "0xde1a02cc7293bbffaaf7774c1cf7394d49df1321",
+  "rkUSDT": "0xa4be7dcf284c6b3447375e438f03a67fdf0dfa90",
+  "vault": "0x1c37c2336accc3b1445296bb7469df0e3ef4ec1d",
+  "ethRpc": "",
+  "ethStrategy": "",
+  "timestamp": "2025-08-26T20:44:28Z"
+}
