@@ -28,7 +28,7 @@ contract ReKaUSDVaultRolloverTest is Test {
         usdt = new MockUSDT();
         rk = new rkUSDT();
         adapter = new MockStargateAdapter(address(usdt));
-        vault = new ReKaUSDVault(address(usdt), address(rk), address(adapter), feeRecipient, 7 days);
+        vault = new ReKaUSDVault(address(usdt), address(rk), address(adapter), feeRecipient, address(0), 7 days);
         rk.transferOwnership(address(this));
         rk.setVault(address(vault));
         vault.transferOwnership(address(this));

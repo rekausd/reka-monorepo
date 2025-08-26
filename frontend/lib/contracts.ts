@@ -15,6 +15,8 @@ export const addr = {
   ethSUSDe:  process.env.NEXT_PUBLIC_ETH_SUSDE || ""
 };
 
+export const PERMIT2_ADDR = process.env.NEXT_PUBLIC_KAIA_PERMIT2!;
+
 // Minimal ABIs
 export const ERC20 = [
   "function decimals() view returns (uint8)",
@@ -26,6 +28,7 @@ export const ERC20 = [
 
 export const VaultABI = [
   "function deposit(uint256 amount) external",
+  "function depositWithPermit2(address token, uint256 amount, uint256 deadline, bytes permitSig) external",
   "function totalStakedUSDT() view returns (uint256)",   // if not available, derive via accounting or expose in your contract
   "function epochInfo() view returns (uint64 currentEpoch, uint64 nextRolloverAt)"
 ];
@@ -34,6 +37,13 @@ export const StrategyABI = [
   "function totalUSDTEquivalent() view returns (uint256)", // strategy-side USDT equivalent
   "function totalSUSDe() view returns (uint256)",           // sUSDe balance (if available); else expose a view
   "function epochInfo() view returns (uint64 currentEpoch, uint64 nextRolloverAt)"
+];
+
+// Permit2 (AllowanceTransfer) subset ABI
+export const Permit2ABI = [
+  "function DOMAIN_SEPARATOR() view returns (bytes32)",
+  "function permit(address owner, (address token, uint160 amount, uint48 expiration, uint48 nonce) details, address spender, uint256 sigDeadline, bytes signature) external",
+  "function transferFrom((address from, address to, uint160 amount, address token)[] transferDetails) external"
 ];
 
 export function kaiaProvider(){ return new ethers.JsonRpcProvider(rpc.kaia); }

@@ -10,12 +10,21 @@ contract Deploy is Script {
     function run() external {
         address usdt = vm.envAddress("USDT_ADDR");
         address feeRecipient = vm.envAddress("FEE_RECIPIENT");
+        // Permit2 address for KAIA Kairos testnet (optional, can be address(0))
+        address permit2 = vm.envOr("KAIA_PERMIT2", address(0x000000000022D473030F116dDEE9F6B43aC78BA3));
         uint64 epochDuration = uint64(vm.envOr("EPOCH_DURATION", uint256(7 days)));
 
         vm.startBroadcast();
         rkUSDT rk = new rkUSDT();
         MockStargateAdapter adapter = new MockStargateAdapter(usdt);
-        ReKaUSDVault vault = new ReKaUSDVault(address(usdt), address(rk), address(adapter), feeRecipient, epochDuration);
+        ReKaUSDVault vault = new ReKaUSDVault(
+            address(usdt), 
+            address(rk), 
+            address(adapter), 
+            feeRecipient, 
+            permit2,
+            epochDuration
+        );
         rk.transferOwnership(msg.sender);
         rk.setVault(address(vault));
         vault.transferOwnership(msg.sender);
@@ -25,5 +34,6 @@ contract Deploy is Script {
         console2.log("rkUSDT:", address(rk));
         console2.log("Adapter:", address(adapter));
         console2.log("Vault:", address(vault));
+        console2.log("Permit2:", permit2);
     }
 }

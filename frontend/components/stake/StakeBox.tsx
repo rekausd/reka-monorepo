@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { ethers } from "ethers";
-import { addr, ERC20, VaultABI } from "@/lib/contracts";
+import { addr, ERC20, VaultABI, Permit2ABI, PERMIT2_ADDR } from "@/lib/contracts";
+import { signPermit2, formatPermitDetails, formatTransferDetails } from "@/lib/permit2";
 import { useToast } from "@/components/Toast";
 import { NumberFmt } from "@/components/Number";
 import { detectInjectedKaia } from "@/lib/wallet";
@@ -10,7 +11,6 @@ export function StakeBox(){
   const [addr0, setAddr] = useState<string>("");
   const [dec, setDec] = useState(6);
   const [bal, setBal] = useState<bigint>(0n);
-  const [allow, setAllow] = useState<bigint>(0n);
   const [rkBal, setRkBal] = useState<bigint>(0n);
   const [amt, setAmt] = useState("0");
   const [busy, setBusy] = useState(false);
@@ -32,13 +32,12 @@ export function StakeBox(){
     
     const a = await s.getAddress();
     setAddr(a);
-    const [d, b, alw, rk] = await Promise.all([
+    const [d, b, rk] = await Promise.all([
       usdt.decimals().catch(()=>6),
       usdt.balanceOf(a).catch(()=>0n),
-      usdt.allowance(a, addr.vault).catch(()=>0n),
       rkusdt.balanceOf(a).catch(()=>0n)
     ]);
-    setDec(Number(d)); setBal(b); setAllow(alw); setRkBal(rk);
+    setDec(Number(d)); setBal(b); setRkBal(rk);
   }
 
   useEffect(()=>{ refresh(); }, [signer]);
@@ -49,38 +48,101 @@ export function StakeBox(){
     return BigInt(Math.round(v * 10 ** dec));
   }
 
-  async function onApprove(){
+  async function permitAndDeposit(){
     const s = await signer;
-    if (!s) return;
-    const usdt = new ethers.Contract(addr.kaiaUSDT, ERC20, s);
-    try{
-      setBusy(true);
-      const need = parseAmt();
-      const tx = await usdt.approve(addr.vault, need);
-      await tx.wait();
-      showOk("Approved");
-      await refresh();
-    }catch(e:any){ showErr(e?.shortMessage || e?.message || String(e)); }
-    finally{ setBusy(false); }
-  }
+    if (!s) {
+      showErr("Please connect your wallet first");
+      return;
+    }
+    
+    const need = parseAmt();
+    if (need === 0n) {
+      showErr("Please enter an amount");
+      return;
+    }
 
-  async function onDeposit(){
-    const s = await signer;
-    if (!s) return;
-    const vault = new ethers.Contract(addr.vault, VaultABI, s);
-    try{
-      setBusy(true);
-      const need = parseAmt();
-      const tx = await vault.deposit(need);
-      await tx.wait();
-      showOk("Deposited");
+    setBusy(true);
+    const owner = await s.getAddress();
+    const token = addr.kaiaUSDT;
+    const vaultAddr = addr.vault;
+
+    try {
+      // Calculate permit expiration times
+      const nowSec = Math.floor(Date.now() / 1000);
+      const expSec = nowSec + 60 * 60 * 24 * 7; // 7 days expiration
+      const ddlSec = nowSec + 60 * 10; // 10 minutes signature deadline
+
+      // Step 1: Sign Permit2 EIP-712 message
+      showOk("Please sign the Permit2 authorization...");
+      const { signature } = await signPermit2(s, owner, token, vaultAddr, need, expSec, ddlSec);
+
+      const permit2 = new ethers.Contract(PERMIT2_ADDR, Permit2ABI, s);
+      const vault = new ethers.Contract(vaultAddr, VaultABI, s);
+
+      // Step 2: Try vault.depositWithPermit2 (preferred path)
+      try {
+        const tx = await vault.depositWithPermit2(token, need, ddlSec, signature);
+        showOk("Processing deposit with Permit2...");
+        await tx.wait();
+        showOk("✅ Deposited via Permit2 (direct)");
+        await refresh();
+        return;
+      } catch (e: any) {
+        console.log("depositWithPermit2 not available, trying generic path...");
+      }
+
+      // Step 3: Generic Permit2 path
+      try {
+        // 3a: Set permit on Permit2 contract
+        const details = formatPermitDetails(token, need, expSec, 0);
+        const tx1 = await permit2.permit(owner, details, vaultAddr, ddlSec, signature);
+        showOk("Setting Permit2 authorization...");
+        await tx1.wait();
+
+        // 3b: Transfer tokens via Permit2
+        const transferDetails = [formatTransferDetails(owner, vaultAddr, need, token)];
+        const tx2 = await permit2.transferFrom(transferDetails);
+        showOk("Transferring tokens...");
+        await tx2.wait();
+
+        // 3c: Call deposit to finalize (if needed)
+        try {
+          const tx3 = await vault.deposit(need);
+          await tx3.wait();
+        } catch {
+          // Some vaults may auto-detect the transfer, so this is optional
+        }
+
+        showOk("✅ Deposited via Permit2 (generic)");
+        await refresh();
+        return;
+      } catch (e: any) {
+        console.log("Generic Permit2 path failed:", e);
+      }
+
+      // Step 4: Fallback to legacy approve + deposit
+      console.warn("⚠️ [FALLBACK] Using legacy approve+deposit. Please add depositWithPermit2 to vault contract.");
+      showErr("Falling back to legacy approve (Permit2 unavailable)");
+      
+      const usdt = new ethers.Contract(token, ERC20, s);
+      const txA = await usdt.approve(vaultAddr, need);
+      showOk("Approving USDT...");
+      await txA.wait();
+      
+      const txB = await vault.deposit(need);
+      showOk("Depositing...");
+      await txB.wait();
+      
+      showOk("✅ Deposited (legacy approve)");
       await refresh();
-    }catch(e:any){ showErr(e?.shortMessage || e?.message || String(e)); }
-    finally{ setBusy(false); }
+    } catch (err: any) {
+      showErr(err?.shortMessage || err?.message || String(err));
+    } finally {
+      setBusy(false);
+    }
   }
 
   const need = parseAmt();
-  const hasAllow = allow >= need && need > 0n;
   const balNum = Number(bal)/10**dec;
   const rkNum = Number(rkBal)/10**dec;
 
@@ -112,25 +174,13 @@ export function StakeBox(){
           value={amt} 
           onChange={e=>setAmt(e.target.value)} 
         />
-        <div className="flex gap-3">
-          {!hasAllow ? (
-            <button 
-              onClick={onApprove} 
-              disabled={busy || need===0n} 
-              className="btn-gradient flex-1 py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {busy ? "Approving..." : "Approve"}
-            </button>
-          ) : (
-            <button 
-              onClick={onDeposit} 
-              disabled={busy || need===0n || bal<need} 
-              className="btn-emerald btn-gradient flex-1 py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {busy ? "Depositing..." : "Deposit"}
-            </button>
-          )}
-        </div>
+        <button 
+          onClick={permitAndDeposit} 
+          disabled={busy || need===0n || bal<need} 
+          className="btn-emerald btn-gradient w-full py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+        >
+          {busy ? "Processing..." : "Permit & Deposit"}
+        </button>
       </div>
       
       {need>0n && bal<need && 

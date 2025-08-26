@@ -31,7 +31,7 @@ contract ReKaUSDVaultTest is Test {
         usdt = new MockUSDT();
         rk = new rkUSDT();
         adapter = new MockStargateAdapter(address(usdt));
-        vault = new ReKaUSDVault(address(usdt), address(rk), address(adapter), feeRecipient, WEEK);
+        vault = new ReKaUSDVault(address(usdt), address(rk), address(adapter), feeRecipient, address(0), WEEK);
         rk.transferOwnership(address(this));
         rk.setVault(address(vault));
         vault.transferOwnership(address(this));
