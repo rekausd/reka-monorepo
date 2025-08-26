@@ -1,16 +1,16 @@
 "use client";
 import useSWR from "swr";
 import { ethers } from "ethers";
-import { addr, kaiaProvider } from "@/lib/contracts";
+import { makeKaiaProvider, getUSDTContract, getRkUSDTContract, getVaultContract, ERC20, VaultABI } from "@/lib/contracts";
 import { Card } from "@/components/Card";
 import { NumberFmt } from "@/components/Number";
-import { ERC20, VaultABI } from "@/lib/contracts";
+import type { AppConfig } from "@/lib/appConfig";
 
-async function fetchTotals(){
-  const p = kaiaProvider();
-  const usdt = new ethers.Contract(addr.kaiaUSDT, ERC20, p);
-  const rkusdt = new ethers.Contract(addr.rkUSDT, ERC20, p);
-  const vault = new ethers.Contract(addr.vault, VaultABI, p);
+async function fetchTotals(cfg: AppConfig){
+  const p = makeKaiaProvider(cfg);
+  const usdt = getUSDTContract(cfg, p);
+  const rkusdt = getRkUSDTContract(cfg, p);
+  const vault = getVaultContract(cfg, p);
 
   const [dUSDT, dRK] = await Promise.all([
     usdt.decimals(), rkusdt.decimals()
@@ -30,8 +30,8 @@ async function fetchTotals(){
   };
 }
 
-export function Totals(){
-  const { data } = useSWR("totals", fetchTotals, { refreshInterval: 10000 });
+export function Totals({ config }: { config: AppConfig }){
+  const { data } = useSWR(["totals", config], () => fetchTotals(config), { refreshInterval: 10000 });
   return (
     <div className="grid md:grid-cols-2 gap-5">
       <Card title="Total Staked USDT (KAIA)">

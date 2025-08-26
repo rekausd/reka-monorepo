@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { ethers } from "ethers";
-import { addr, ERC20, VaultABI, Permit2ABI, PERMIT2_ADDR } from "@/lib/contracts";
+import { addresses, getUSDTContract, getRkUSDTContract, getVaultContract, getPermit2Contract, ERC20, VaultABI } from "@/lib/contracts";
 import { signPermit2, formatPermitDetails, formatTransferDetails } from "@/lib/permit2";
 import { useToast } from "@/components/Toast";
 import { NumberFmt } from "@/components/Number";
 import { detectInjectedKaia } from "@/lib/wallet";
+import type { AppConfig } from "@/lib/appConfig";
 
-export function StakeBox(){
+export function StakeBox({ config }: { config: AppConfig }){
   const [addr0, setAddr] = useState<string>("");
   const [dec, setDec] = useState(6);
   const [bal, setBal] = useState<bigint>(0n);
@@ -27,8 +28,8 @@ export function StakeBox(){
     const s = await signer;
     if (!s) return;
     
-    const usdt = new ethers.Contract(addr.kaiaUSDT, ERC20, s);
-    const rkusdt = new ethers.Contract(addr.rkUSDT, ERC20, s);
+    const usdt = getUSDTContract(config, s);
+    const rkusdt = getRkUSDTContract(config, s);
     
     const a = await s.getAddress();
     setAddr(a);
@@ -63,6 +64,7 @@ export function StakeBox(){
 
     setBusy(true);
     const owner = await s.getAddress();
+    const addr = addresses(config);
     const token = addr.kaiaUSDT;
     const vaultAddr = addr.vault;
 
@@ -76,8 +78,8 @@ export function StakeBox(){
       showOk("Please sign the Permit2 authorization...");
       const { signature } = await signPermit2(s, owner, token, vaultAddr, need, expSec, ddlSec);
 
-      const permit2 = new ethers.Contract(PERMIT2_ADDR, Permit2ABI, s);
-      const vault = new ethers.Contract(vaultAddr, VaultABI, s);
+      const permit2 = getPermit2Contract(config, s);
+      const vault = getVaultContract(config, s);
 
       // Step 2: Try vault.depositWithPermit2 (preferred path)
       try {
@@ -124,7 +126,7 @@ export function StakeBox(){
       console.warn("⚠️ [FALLBACK] Using legacy approve+deposit. Please add depositWithPermit2 to vault contract.");
       showErr("Falling back to legacy approve (Permit2 unavailable)");
       
-      const usdt = new ethers.Contract(token, ERC20, s);
+      const usdt = getUSDTContract(config, s);
       const txA = await usdt.approve(vaultAddr, need);
       showOk("Approving USDT...");
       await txA.wait();

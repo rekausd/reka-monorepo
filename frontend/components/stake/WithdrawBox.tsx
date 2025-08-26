@@ -1,13 +1,14 @@
 "use client";
 import { useMemo, useState, useEffect } from "react";
 import { ethers } from "ethers";
-import { addr, VaultABI, ERC20 } from "@/lib/contracts";
+import { addresses, getVaultContract, getRkUSDTContract, VaultABI, ERC20 } from "@/lib/contracts";
 import { NumberFmt } from "@/components/Number";
 import { useToast } from "@/components/Toast";
 import { detectInjectedKaia } from "@/lib/wallet";
 import { epochNow } from "@/lib/epoch";
+import type { AppConfig } from "@/lib/appConfig";
 
-export function WithdrawBox(){
+export function WithdrawBox({ config }: { config: AppConfig }){
   const { epoch, end } = epochNow();
   const [addr0, setAddr] = useState("");
   const [dec, setDec] = useState(6);
@@ -31,8 +32,8 @@ export function WithdrawBox(){
     if (!s) return;
     
     try {
-      const vaultContract = new ethers.Contract(addr.vault, VaultABI, s);
-      const rkusdt = new ethers.Contract(addr.rkUSDT, ERC20, s);
+      const vaultContract = getVaultContract(config, s);
+      const rkusdt = getRkUSDTContract(config, s);
       
       const a = await s.getAddress(); 
       setAddr(a);
