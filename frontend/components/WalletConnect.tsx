@@ -16,19 +16,30 @@ export function WalletConnect(){
 
   if (addr) {
     return (
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-300">KAIA: <span className="font-mono">{addr.slice(0,6)}...{addr.slice(-4)}</span></span>
-        <button onClick={()=>setAddr("")} className="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-sm">Disconnect</button>
+      <div className="flex items-center gap-3">
+        <div className="glass-panel px-4 py-2 flex items-center gap-2">
+          <span className="text-xs text-pendle-gray-400">KAIA:</span>
+          <span className="text-xs font-mono text-gradient">{addr.slice(0,6)}...{addr.slice(-4)}</span>
+        </div>
+        <button 
+          onClick={()=>setAddr("")} 
+          className="px-4 py-2 rounded-xl bg-gradient-to-r from-pendle-gray-700 to-pendle-gray-600 hover:from-pendle-gray-600 hover:to-pendle-gray-500 text-sm font-medium transition-all duration-200 hover:shadow-lg"
+        >
+          Disconnect
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <button onClick={onConnect} className="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-sm">
+    <div className="flex items-center gap-3">
+      <button 
+        onClick={onConnect} 
+        className="btn-emerald btn-gradient text-sm font-medium rounded-xl px-5 py-2.5 shadow-lg"
+      >
         Connect KAIA Wallet
       </button>
-      {err && <span className="ml-2 text-xs text-red-400">{err}</span>}
+      {err && <span className="ml-2 text-xs text-red-400/80 backdrop-blur-sm">{err}</span>}
     </div>
   );
 }

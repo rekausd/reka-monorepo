@@ -35,10 +35,12 @@ export function Totals(){
   return (
     <div className="grid md:grid-cols-2 gap-5">
       <Card title="Total Staked USDT (KAIA)">
-        <div className="text-3xl font-semibold"><NumberFmt v={data?.stakedUSDT ?? 0} /></div>
+        <div className="text-3xl font-bold text-gradient"><NumberFmt v={data?.stakedUSDT ?? 0} /></div>
+        <div className="mt-2 text-xs text-pendle-gray-500">Protocol TVL</div>
       </Card>
       <Card title="rkUSDT Total Supply (KAIA)">
-        <div className="text-3xl font-semibold"><NumberFmt v={data?.rkTotal ?? 0} /></div>
+        <div className="text-3xl font-bold text-gradient"><NumberFmt v={data?.rkTotal ?? 0} /></div>
+        <div className="mt-2 text-xs text-pendle-gray-500">Total Minted</div>
       </Card>
     </div>
   );

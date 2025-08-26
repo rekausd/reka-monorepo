@@ -85,22 +85,63 @@ export function StakeBox(){
   const rkNum = Number(rkBal)/10**dec;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {toast}
-      <div className="text-sm text-gray-300">{addr0 ? `Connected: ${addr0}` : "Connect KAIA Wallet via header"}</div>
-      <div className="text-sm text-gray-300">USDT Balance: <b><NumberFmt v={balNum}/></b></div>
-      <div className="flex items-center gap-3">
-        <input type="number" min="0" placeholder="Amount" className="bg-transparent border rounded px-3 py-2 w-48 border-gray-600"
-          value={amt} onChange={e=>setAmt(e.target.value)} />
-        {!hasAllow ? (
-          <button onClick={onApprove} disabled={busy || need===0n} className="px-3 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-sm disabled:opacity-50">Approve</button>
-        ) : (
-          <button onClick={onDeposit} disabled={busy || need===0n || bal<need} className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-sm disabled:opacity-50">Deposit</button>
-        )}
+      <div className="glass-panel p-4 rounded-xl">
+        <div className="text-sm text-pendle-gray-400 mb-1">Status</div>
+        <div className="text-sm font-medium">{addr0 ? `Connected: ${addr0.slice(0,6)}...${addr0.slice(-4)}` : "Connect KAIA Wallet via header"}</div>
       </div>
-      {need>0n && bal<need && <div className="text-xs text-red-400">Insufficient balance.</div>}
-      <div className="text-sm text-gray-300">rkUSDT Balance: <b><NumberFmt v={rkNum}/></b></div>
-      <div className="text-xs text-gray-400">1 rkUSDT = 1 USDT at mint (epoch accounting applies on withdrawal).</div>
+      
+      <div className="glass-panel p-4 rounded-xl space-y-3">
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-pendle-gray-400">USDT Balance</span>
+          <span className="text-lg font-semibold text-gradient"><NumberFmt v={balNum}/></span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-pendle-gray-400">rkUSDT Balance</span>
+          <span className="text-lg font-semibold text-gradient"><NumberFmt v={rkNum}/></span>
+        </div>
+      </div>
+      
+      <div className="space-y-3">
+        <input 
+          type="number" 
+          min="0" 
+          placeholder="Enter amount to stake" 
+          className="input-glow w-full px-4 py-3 text-white placeholder-pendle-gray-500"
+          value={amt} 
+          onChange={e=>setAmt(e.target.value)} 
+        />
+        <div className="flex gap-3">
+          {!hasAllow ? (
+            <button 
+              onClick={onApprove} 
+              disabled={busy || need===0n} 
+              className="btn-gradient flex-1 py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {busy ? "Approving..." : "Approve"}
+            </button>
+          ) : (
+            <button 
+              onClick={onDeposit} 
+              disabled={busy || need===0n || bal<need} 
+              className="btn-emerald btn-gradient flex-1 py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {busy ? "Depositing..." : "Deposit"}
+            </button>
+          )}
+        </div>
+      </div>
+      
+      {need>0n && bal<need && 
+        <div className="glass-panel px-3 py-2 rounded-lg border-red-500/30 border">
+          <span className="text-xs text-red-400">Insufficient balance</span>
+        </div>
+      }
+      
+      <div className="glass-panel p-3 rounded-lg">
+        <p className="text-xs text-pendle-gray-400">1 rkUSDT = 1 USDT at mint (epoch accounting applies on withdrawal)</p>
+      </div>
     </div>
   );
 }

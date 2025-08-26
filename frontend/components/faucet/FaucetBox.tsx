@@ -52,13 +52,17 @@ export function FaucetBox(){
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {toast}
-      <div className="text-sm text-gray-300">Mint 10,000 test USDT to your KAIA address.</div>
-      <button onClick={onMint} disabled={busy} className="px-3 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-sm disabled:opacity-50">
+      <div className="text-sm text-pendle-gray-300 font-medium">Mint 10,000 test USDT to your KAIA address.</div>
+      <button 
+        onClick={onMint} 
+        disabled={busy} 
+        className="btn-gradient w-full py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+      >
         {busy ? "Minting..." : "Get Mock USDT"}
       </button>
-      {msg && <div className="text-xs text-gray-400">{msg}</div>}
+      {msg && <div className="text-xs text-pendle-gray-400 glass-panel px-3 py-2 rounded-lg">{msg}</div>}
     </div>
   );
 }

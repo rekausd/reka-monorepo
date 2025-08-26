@@ -18,9 +18,18 @@ async function fetchHoldings(){
 export function Holdings(){
   const { data } = useSWR("holdings", fetchHoldings, { refreshInterval: 10000 });
   return (
-    <Card title="ETH Strategy Holdings (Read-only)">
-      <div className="text-sm text-gray-300">USDT Equivalent: <b><NumberFmt v={data?.usdtEq ?? 0}/></b></div>
-      <div className="text-sm text-gray-300 mt-1">sUSDe: <b><NumberFmt v={data?.sUSDe ?? 0}/></b></div>
+    <Card title="ETH Strategy Holdings">
+      <div className="space-y-3">
+        <div className="glass-panel p-3 rounded-lg">
+          <div className="text-xs text-pendle-gray-400 mb-1">USDT Equivalent</div>
+          <div className="text-xl font-bold text-gradient"><NumberFmt v={data?.usdtEq ?? 0}/></div>
+        </div>
+        <div className="glass-panel p-3 rounded-lg">
+          <div className="text-xs text-pendle-gray-400 mb-1">sUSDe Holdings</div>
+          <div className="text-xl font-bold text-gradient"><NumberFmt v={data?.sUSDe ?? 0}/></div>
+        </div>
+        <div className="text-xs text-pendle-gray-500 mt-2">Read-only Ethereum data</div>
+      </div>
     </Card>
   );
 }
