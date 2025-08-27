@@ -93,11 +93,41 @@ cat > deployments/kaia-kairos-all.json <<JSON
   "vault": "$VAULT",
   "ethRpc": "${NEXT_PUBLIC_ETH_RPC_URL:-}",
   "ethStrategy": "${NEXT_PUBLIC_ETH_STRATEGY:-}",
+  "faucetToken": "$USDT",
+  "faucetAmount": "10000",
   "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 }
 JSON
 
 echo -e "${GREEN}Saved deployment record to deployments/kaia-kairos-all.json${NC}"
+
+# Check existing frontend config for differences
+if [ -f frontend/public/reka-config.json ]; then
+  echo -e "${YELLOW}=== Existing Frontend Config ===${NC}"
+  cat frontend/public/reka-config.json | jq '.' 2>/dev/null || cat frontend/public/reka-config.json
+  echo ""
+  
+  # Compare with what we're about to deploy
+  OLD_USDT=$(jq -r '.usdt // empty' frontend/public/reka-config.json 2>/dev/null || true)
+  OLD_VAULT=$(jq -r '.vault // empty' frontend/public/reka-config.json 2>/dev/null || true)
+  OLD_RKUSDT=$(jq -r '.rkUSDT // empty' frontend/public/reka-config.json 2>/dev/null || true)
+  
+  if [ -n "$OLD_USDT" ] && [ "$OLD_USDT" != "$USDT" ]; then
+    echo -e "${YELLOW}WARN: Frontend USDT changing from $OLD_USDT to $USDT${NC}"
+  fi
+  if [ -n "$OLD_VAULT" ] && [ "$OLD_VAULT" != "$VAULT" ]; then
+    echo -e "${YELLOW}WARN: Frontend Vault changing from $OLD_VAULT to $VAULT${NC}"
+  fi
+  if [ -n "$OLD_RKUSDT" ] && [ "$OLD_RKUSDT" != "$RKUSDT" ]; then
+    echo -e "${YELLOW}WARN: Frontend rkUSDT changing from $OLD_RKUSDT to $RKUSDT${NC}"
+  fi
+fi
+
+echo -e "${GREEN}Writing new frontend config with:${NC}"
+echo "  USDT=$USDT"
+echo "  rkUSDT=$RKUSDT"
+echo "  Vault=$VAULT"
+echo "  faucetToken=$USDT"
 
 # Write runtime config for the frontend (Vercel will serve this file)
 cat > frontend/public/reka-config.json <<JSON
@@ -108,7 +138,9 @@ cat > frontend/public/reka-config.json <<JSON
   "rkUSDT": "$RKUSDT",
   "vault": "$VAULT",
   "ethRpc": "${NEXT_PUBLIC_ETH_RPC_URL:-}",
-  "ethStrategy": "${NEXT_PUBLIC_ETH_STRATEGY:-}"
+  "ethStrategy": "${NEXT_PUBLIC_ETH_STRATEGY:-}",
+  "faucetToken": "$USDT",
+  "faucetAmount": "10000"
 }
 JSON
 
@@ -135,6 +167,31 @@ echo "Permit2:  $KAIA_PERMIT2"
 echo "USDT:     $USDT"
 echo "rkUSDT:   $RKUSDT"
 echo "Vault:    $VAULT"
+
+# Post-deploy faucet self-test
+echo ""
+echo -e "${YELLOW}=== Running Post-Deploy Faucet Self-Test ===${NC}"
+export FAUCET_TOKEN="$USDT"
+export FAUCET_TO="$(cast wallet address --private-key $PRIVATE_KEY 2>/dev/null || echo 0x0000000000000000000000000000000000000000)"
+
+echo "Testing faucet functionality on USDT: $FAUCET_TOKEN"
+echo "Test recipient: $FAUCET_TO"
+
+# Run the faucet probe script
+cd contracts
+forge script script/kaia/ProbeFaucet.s.sol:ProbeFaucet \
+  --rpc-url "$KAIA_RPC_URL" \
+  --private-key "$PRIVATE_KEY" \
+  --broadcast \
+  -vv || {
+    echo -e "${RED}ERROR: Faucet self-test failed!${NC}"
+    echo "Ensure Mock USDT exposes a working mint/faucet function."
+    echo "Check that deployed addresses match frontend config."
+    exit 1
+}
+
+cd "$ROOT"
+echo -e "${GREEN}✓ Faucet self-test passed${NC}"
 
 # Git commit and push (optional)
 if [ "${AUTO_COMMIT:-true}" = "true" ]; then

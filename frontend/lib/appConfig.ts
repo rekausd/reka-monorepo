@@ -6,6 +6,8 @@ export type AppConfig = {
   vault: string;
   ethRpc?: string;
   ethStrategy?: string;
+  faucetToken?: string;
+  faucetAmount?: string;
 };
 
 // Fallback to NEXT_PUBLIC_* if config file is missing (local dev)
@@ -17,6 +19,8 @@ export function envFallback(): AppConfig {
     rkUSDT: process.env.NEXT_PUBLIC_KAIA_RKUSDT || "",
     vault: process.env.NEXT_PUBLIC_KAIA_VAULT || "",
     ethRpc: process.env.NEXT_PUBLIC_ETH_RPC_URL || "",
-    ethStrategy: process.env.NEXT_PUBLIC_ETH_STRATEGY || ""
+    ethStrategy: process.env.NEXT_PUBLIC_ETH_STRATEGY || "",
+    faucetToken: process.env.NEXT_PUBLIC_KAIA_USDT || "",
+    faucetAmount: "10000"
   };
 }

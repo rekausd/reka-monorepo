@@ -9,14 +9,17 @@ contract DeployTokensKaia is Script {
         // Check if tokens already exist via env
         address usdt = vm.envOr("KAIA_USDT", address(0));
         address rkusdt = vm.envOr("KAIA_RKUSDT", address(0));
+        address permit2 = vm.envOr("KAIA_PERMIT2", address(0x000000000022D473030F116dDEE9F6B43aC78BA3));
+        
+        console2.log("Permit2:", permit2);
         
         vm.startBroadcast();
         
-        // Deploy USDT if not provided
+        // Deploy USDT if not provided (with Permit2 bypass)
         if (usdt == address(0)) {
-            MockUSDTMintableOpen usdtContract = new MockUSDTMintableOpen("Tether USD", "USDT");
+            MockUSDTMintableOpen usdtContract = new MockUSDTMintableOpen("Tether USD", "USDT", permit2);
             usdt = address(usdtContract);
-            console2.log("Deployed new USDT:", usdt);
+            console2.log("Deployed new USDT (Permit2-aware):", usdt);
         } else {
             console2.log("Using existing USDT:", usdt);
         }

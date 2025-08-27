@@ -1,68 +1,104 @@
 "use client";
 import { useMemo, useState } from "react";
 import { ethers } from "ethers";
-import { addr, ERC20 } from "@/lib/contracts";
 import { useToast } from "@/components/Toast";
 import { detectInjectedKaia } from "@/lib/wallet";
+import { useAppConfig } from "@/hooks/useAppConfig";
+import { ERC20 } from "@/lib/contracts";
 
-export function FaucetBox(){
+const ABI = [
+  ...ERC20,
+  "function mint(address to, uint256 amount)"
+];
+
+export function FaucetBox() {
+  const cfg = useAppConfig();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const { node: toast, showOk, showErr } = useToast();
 
   const inj = detectInjectedKaia();
-  const provider = useMemo(()=> inj ? new ethers.BrowserProvider(inj, "any") : null, [inj]);
-  const signer = useMemo(async ()=> {
-    if (!provider) return null;
-    try { return await provider.getSigner(); } catch { return null; }
-  }, [provider]);
+  const provider = useMemo(() => inj ? new ethers.BrowserProvider(inj, "any") : null, [inj]);
+  const signerP = useMemo(() => provider ? provider.getSigner() : null, [provider]);
 
-  async function onMint(){
-    const s = await signer;
-    if (!s) { setMsg("Connect KAIA Wallet first."); return; }
-    setBusy(true); setMsg("");
-    try{
-      const a = await s.getAddress();
-      const usdt = new ethers.Contract(addr.kaiaUSDT, ERC20, s);
-      const dec = await usdt.decimals().catch(()=>6);
-      const amt = BigInt(10_000 * 10**Number(dec));
+  async function onMint() {
+    if (!cfg) { 
+      setMsg("Loading config..."); 
+      return; 
+    }
+    
+    const signer = await signerP;
+    if (!signer) { 
+      setMsg("Connect KAIA Wallet first."); 
+      return; 
+    }
+    
+    setBusy(true); 
+    setMsg("");
 
-      // Try mint(address,uint256)
-      try{
-        const c = new ethers.Contract(addr.kaiaUSDT, [...ERC20, "function mint(address to, uint256 amount)"], s);
-        const tx = await c.mint(a, amt); 
-        await tx.wait(); 
-        showOk("Minted 10,000 USDT"); 
-        return;
-      }catch{}
+    try {
+      const me = await signer.getAddress();
+      const tokenAddr = cfg.faucetToken && cfg.faucetToken.length > 0 ? cfg.faucetToken : cfg.usdt;
+      
+      if (!tokenAddr || tokenAddr === "") {
+        throw new Error("No token address configured for faucet");
+      }
+      
+      const c = new ethers.Contract(tokenAddr, ABI, signer);
+      const decimals = await c.decimals().catch(() => 6);
+      const whole = Number(cfg.faucetAmount || "10000");
+      const amt = BigInt(Math.round(whole * 10 ** Number(decimals)));
 
-      // Fallback: mint(uint256)
-      try{
-        const c2 = new ethers.Contract(addr.kaiaUSDT, [...ERC20, "function mint(uint256 amount)"], s);
-        const tx2 = await c2.mint(amt); 
-        await tx2.wait();
-        showOk("Minted 10,000 USDT");
-        return;
-      }catch{}
+      // Single, simple mint(to, amount) call
+      showOk(`Minting ${whole.toLocaleString()} USDT...`);
+      const tx = await c.mint(me, amt);
+      await tx.wait();
 
-      // If both fail, show error
-      throw new Error("Faucet function not found on USDT contract");
-    }catch(e:any){ showErr(e?.shortMessage || e?.message || String(e)); }
-    finally{ setBusy(false); }
+      showOk(`✅ Minted ${whole.toLocaleString()} USDT`);
+      setMsg(`Success! mint(to, amount) on ${tokenAddr.slice(0, 10)}...`);
+    } catch (e: any) {
+      const err = e?.shortMessage || e?.message || String(e);
+      showErr(err);
+      setMsg(`Failed: ${err.slice(0, 200)}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <div className="space-y-4">
       {toast}
-      <div className="text-sm text-pendle-gray-300 font-medium">Mint 10,000 test USDT to your KAIA address.</div>
+      
+      <div className="glass-panel p-4 rounded-xl">
+        <div className="text-sm text-pendle-gray-400 mb-2">
+          Mint {cfg?.faucetAmount || "10,000"} test USDT to your KAIA address.
+        </div>
+        <div className="text-xs text-pendle-gray-500">
+          This faucet works with mock USDT deployed on KAIA testnet.
+        </div>
+      </div>
+
       <button 
         onClick={onMint} 
-        disabled={busy} 
-        className="btn-gradient w-full py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+        disabled={busy || !cfg} 
+        className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {busy ? "Minting..." : "Get Mock USDT"}
       </button>
-      {msg && <div className="text-xs text-pendle-gray-400 glass-panel px-3 py-2 rounded-lg">{msg}</div>}
+      
+      {msg && (
+        <div className="glass-panel p-3 rounded-lg">
+          <div className="text-xs text-pendle-gray-400 break-all">{msg}</div>
+        </div>
+      )}
+      
+      {cfg && cfg.faucetToken && (
+        <div className="text-xs text-pendle-gray-500">
+          <div>Token: <span className="font-mono text-pendle-gray-400">{cfg.faucetToken}</span></div>
+          <div>Amount: <span className="text-pendle-gray-400">{cfg.faucetAmount || "10000"} USDT</span></div>
+          <div className="mt-2 text-pendle-gray-600">Using simplified mint(to, amount) signature</div>
+        </div>
+      )}
     </div>
   );
 }

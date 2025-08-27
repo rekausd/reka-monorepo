@@ -17,7 +17,7 @@ contract SimpleRekaUSDVaultEpochTest is Test {
     
     function setUp() public {
         // Deploy mocks
-        usdt = new MockUSDTMintableOpen("USDT", "USDT");
+        usdt = new MockUSDTMintableOpen("USDT", "USDT", permit2);
         rkusdt = new MockRKUSDTMintable("rkUSDT", "rkUSDT");
         
         // Deploy vault at a specific timestamp for testing

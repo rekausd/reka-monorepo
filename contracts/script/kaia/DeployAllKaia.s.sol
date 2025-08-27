@@ -7,13 +7,13 @@ import {SimpleRekaUSDVault} from "../../src/kaia/SimpleRekaUSDVault.sol";
 
 /// @title Deploy all KAIA contracts in one transaction
 /// @notice Deploys USDT, rkUSDT, and Vault for KAIA testnet
+/// @dev ALWAYS deploys mock USDT to ensure faucet functionality
 contract DeployAllKaia is Script {
     function run() external returns (address usdt, address rkusdt, address vault) {
         // Read Permit2 from env or use default
         address permit2 = vm.envOr("KAIA_PERMIT2", address(0x000000000022D473030F116dDEE9F6B43aC78BA3));
         
-        // Check if contracts already exist (to avoid redeploying)
-        address existingUsdt = vm.envOr("KAIA_USDT", address(0));
+        // Check if contracts already exist (for rkUSDT and Vault only)
         address existingRkusdt = vm.envOr("KAIA_RKUSDT", address(0));
         address existingVault = vm.envOr("KAIA_VAULT", address(0));
         
@@ -22,15 +22,11 @@ contract DeployAllKaia is Script {
         
         vm.startBroadcast();
         
-        // Deploy or use existing USDT
-        if (existingUsdt != address(0)) {
-            usdt = existingUsdt;
-            console2.log("Using existing USDT:", usdt);
-        } else {
-            MockUSDTMintableOpen usdtContract = new MockUSDTMintableOpen("Tether USD", "USDT");
-            usdt = address(usdtContract);
-            console2.log("Deployed new USDT:", usdt);
-        }
+        // ALWAYS deploy mock USDT with Permit2 bypass enabled
+        // Pass permit2 address to constructor for infinite allowance
+        MockUSDTMintableOpen usdtContract = new MockUSDTMintableOpen("Tether USD", "USDT", permit2);
+        usdt = address(usdtContract);
+        console2.log("Deployed new Mock USDT (Permit2-aware):", usdt);
         
         // Deploy or use existing rkUSDT
         if (existingRkusdt != address(0)) {
@@ -63,10 +59,12 @@ contract DeployAllKaia is Script {
         vm.stopBroadcast();
         
         console2.log("=== Deployment Complete ===");
-        console2.log("USDT:", usdt);
+        console2.log("Mock USDT (faucet):", usdt);
         console2.log("rkUSDT:", rkusdt);
         console2.log("Vault:", vault);
         console2.log("Permit2:", permit2);
+        console2.log("");
+        console2.log("NOTE: USDT is always deployed fresh to ensure faucet functionality");
         
         return (usdt, rkusdt, vault);
     }
