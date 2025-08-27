@@ -8,6 +8,7 @@ export type AppConfig = {
   ethStrategy?: string;
   faucetToken?: string;
   faucetAmount?: string;
+  kaiaStartBlock?: number;
 };
 
 // Fallback to NEXT_PUBLIC_* if config file is missing (local dev)

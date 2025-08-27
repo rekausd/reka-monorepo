@@ -45,7 +45,15 @@ export const VaultABI = [
   "function epochDuration() view returns (uint64)",
   "function currentEpoch() view returns (uint64)",
   "function epochEnd(uint64 epoch) view returns (uint64)",
-  "function timeUntilEpochEnd() view returns (uint256)"
+  "function timeUntilEpochEnd() view returns (uint256)",
+  
+  // Cumulative tracking views
+  "function totalDepositedUSDT() view returns (uint256)",
+  "function totalClaimedUSDT() view returns (uint256)",
+  
+  // Events for fallback scanning
+  "event Deposit(address indexed owner, uint256 amount)",
+  "event ClaimWithdrawal(address indexed owner, uint256 usdtAmount)"
 ];
 
 export const StrategyABI = [

@@ -54,11 +54,17 @@ contract ReKaUSDVault is Ownable2Step, Pausable, ReentrancyGuard {
     uint256 public totalClaimablePool; // aggregate of all claimable amounts
     uint256 public totalPendingNextPool; // aggregate of all pendingNext amounts for the active epoch
 
+    // Cumulative tracking
+    uint256 public cumulativeDepositedUSDT; // total lifetime USDT deposited
+    uint256 public cumulativeClaimedUSDT; // total lifetime USDT redeemed to users
+
     // Events
+    event Deposit(address indexed owner, uint256 amount);
     event Deposited(address indexed user, uint256 amount, uint64 epoch);
     event DepositWithPermit2(address indexed owner, uint256 amount, uint256 sigDeadline);
     event WithdrawalRequested(address indexed user, uint256 amount, uint256 fee, uint64 epoch, bool isInstant);
     event WithdrawalClaimed(address indexed user, uint256 amount);
+    event ClaimWithdrawal(address indexed owner, uint256 usdtAmount);
     event EpochRollover(uint64 prevEpoch, uint64 newEpoch, uint256 bridgedAmount, uint256 queuedPaidTotal);
     event FeeRecipientUpdated(address indexed newRecipient);
     event OperatorUpdated(address indexed newOperator);
@@ -141,7 +147,11 @@ contract ReKaUSDVault is Ownable2Step, Pausable, ReentrancyGuard {
         rk.mint(msg.sender, amount);
 
         currentEpochDeposits[msg.sender] += amount;
+        
+        // Track cumulative deposits
+        cumulativeDepositedUSDT += amount;
 
+        emit Deposit(msg.sender, amount);
         emit Deposited(msg.sender, amount, currentEpoch);
     }
 
@@ -198,8 +208,12 @@ contract ReKaUSDVault is Ownable2Step, Pausable, ReentrancyGuard {
         // 4) Mint rkUSDT 1:1 to owner
         rk.mint(owner, amount);
         currentEpochDeposits[owner] += amount;
+        
+        // Track cumulative deposits
+        cumulativeDepositedUSDT += amount;
 
         // 5) Emit events
+        emit Deposit(owner, amount);
         emit DepositWithPermit2(owner, amount, sigDeadline);
         emit Deposited(owner, amount, currentEpoch);
     }
@@ -227,6 +241,10 @@ contract ReKaUSDVault is Ownable2Step, Pausable, ReentrancyGuard {
                 usdt.safeTransfer(feeRecipient, fee);
             }
             usdt.safeTransfer(msg.sender, net);
+            
+            // Track cumulative claims for instant withdrawals
+            cumulativeClaimedUSDT += net;
+            emit ClaimWithdrawal(msg.sender, net);
         } else {
             // Queued withdrawal: only up to available balance next epoch
             // First, if user has pending from prior epoch(s) that became claimable after a rollover, harvest it
@@ -256,6 +274,10 @@ contract ReKaUSDVault is Ownable2Step, Pausable, ReentrancyGuard {
         claimable[msg.sender] = 0;
         totalClaimablePool -= amount;
         usdt.safeTransfer(msg.sender, amount);
+        
+        // Track cumulative claims
+        cumulativeClaimedUSDT += amount;
+        emit ClaimWithdrawal(msg.sender, amount);
         emit WithdrawalClaimed(msg.sender, amount);
     }
 
@@ -336,5 +358,14 @@ contract ReKaUSDVault is Ownable2Step, Pausable, ReentrancyGuard {
     function _toUint160(uint256 x) internal pure returns (uint160) {
         require(x <= type(uint160).max, "overflow");
         return uint160(x);
+    }
+
+    // Public getters for cumulative metrics
+    function totalDepositedUSDT() external view returns (uint256) {
+        return cumulativeDepositedUSDT;
+    }
+    
+    function totalClaimedUSDT() external view returns (uint256) {
+        return cumulativeClaimedUSDT;
     }
 }
