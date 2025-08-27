@@ -1,12 +1,12 @@
 {
   "kaiaRpc": "https://public-en-kairos.node.kaia.io",
   "permit2": "0x000000000022d473030f116ddee9f6b43ac78ba3",
-  "usdt": "0x27b3b84181b8b32a8c0947220c50d6384a266190",
-  "rkUSDT": "0x1fc6a91716af44e18d78d03bea104ea532977569",
-  "vault": "0xfa5de7c763c04d666eb48d7cb731876e6ef9b75d",
+  "usdt": "0xe5995691188391fa40493473c3b6973cf8e3e0cc",
+  "rkUSDT": "0xc124fbb1fbeeeefaf8c33cd1d101b2565d21c980",
+  "vault": "0x9bf08e8c10eaeb61da8f19ff6385eb39f59f933a",
   "ethRpc": "",
   "ethStrategy": "",
-  "faucetToken": "0x27b3b84181b8b32a8c0947220c50d6384a266190",
+  "faucetToken": "0xe5995691188391fa40493473c3b6973cf8e3e0cc",
   "faucetAmount": "10000",
-  "timestamp": "2025-08-26T21:22:33Z"
+  "timestamp": "2025-08-27T00:19:03Z"
 }
