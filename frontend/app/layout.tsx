@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
-export const metadata = { title: "ReKaUSD (KAIA)", description: "Stake USDT → rkUSDT with external yield" };
+export const metadata = { title: "ReKaUSD", description: "Stake USDT → rkUSDT with external yield" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

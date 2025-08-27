@@ -6,7 +6,7 @@ export function Header(){
   return (
     <header className="glass-panel px-6 py-4 mb-8 rounded-2xl backdrop-blur-md">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gradient">ReKaUSD (KAIA)</h1>
+        <h1 className="text-2xl font-bold text-gradient">ReKaUSD</h1>
         <div className="flex items-center gap-6">
           <nav className="flex gap-6 text-sm">
             <Link href="/" className="nav-link">Dashboard</Link>
