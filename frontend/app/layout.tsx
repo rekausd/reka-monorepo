@@ -2,27 +2,25 @@ import "./globals.css";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { COPY } from "@/lib/copy";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
-export const metadata = { title: "ReKaUSD", description: "Stake USDT → rkUSDT with external yield" };
+export const metadata = { title: COPY.appName, description: COPY.tagline };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full">
-      <body className="min-h-screen h-full flex flex-col">
-        {/* Header section */}
-        <div className="mx-auto w-full max-w-7xl p-6 pb-0">
-          <Header />
-        </div>
-        
-        {/* Main content area - grows to fill available space */}
+      <body className="min-h-screen flex flex-col bg-[#0B0C10] text-white">
+        <Header />
         <main className="flex-1">
-          <div className="mx-auto max-w-7xl px-6 py-8">
+          <div className="max-w-[480px] mx-auto px-4 py-5">
             {children}
           </div>
         </main>
-        
-        {/* Sticky Footer */}
         <Footer />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

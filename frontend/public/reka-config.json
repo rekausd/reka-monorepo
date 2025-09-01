@@ -7,5 +7,10 @@
   "ethRpc": "",
   "ethStrategy": "",
   "faucetToken": "0x414277a16bdb2d6c25c7baf07e89b86d3fe714bd",
-  "faucetAmount": "10000"
+  "faucetAmount": "10000",
+  "strategyApyBps": 1100,
+  "yieldSources": [
+    { "name": "Ethena sUSDe", "apyBps": 1100, "url": "https://app.ethena.fi" },
+    { "name": "Pendle PT-sUSDe", "apyBps": 1300, "url": "https://app.pendle.finance" }
+  ]
 }

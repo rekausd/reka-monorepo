@@ -1,3 +1,5 @@
+export type YieldSource = { name: string; apyBps: number; url?: string };
+
 export type AppConfig = {
   kaiaRpc: string;
   permit2: string;
@@ -9,6 +11,8 @@ export type AppConfig = {
   faucetToken?: string;
   faucetAmount?: string;
   kaiaStartBlock?: number;
+  strategyApyBps?: number;          // e.g. 1100 = 11.00%
+  yieldSources?: YieldSource[];
 };
 
 // Fallback to NEXT_PUBLIC_* if config file is missing (local dev)

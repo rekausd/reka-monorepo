@@ -5,6 +5,9 @@ import { useToast } from "@/components/Toast";
 import { detectInjectedKaia } from "@/lib/wallet";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { ERC20 } from "@/lib/contracts";
+import { COPY } from "@/lib/copy";
+import { track } from "@/lib/analytics";
+import { getVariant } from "@/lib/ab";
 
 const ABI = [
   ...ERC20,
@@ -56,6 +59,8 @@ export function FaucetBox() {
 
       showOk(`✅ Minted ${whole.toLocaleString()} USDT`);
       setMsg(`Success! mint(to, amount) on ${tokenAddr.slice(0, 10)}...`);
+      track("faucet_success", { amount: whole });
+      track("ab_conv_faucet", { variant: getVariant() });
     } catch (e: any) {
       const err = e?.shortMessage || e?.message || String(e);
       showErr(err);
@@ -69,11 +74,11 @@ export function FaucetBox() {
     <div className="space-y-4">
       {toast}
       
-      <div className="glass-panel p-4 rounded-xl">
-        <div className="text-sm text-pendle-gray-400 mb-2">
+      <div className="bg-white/5 border border-white/10 p-3 rounded-xl">
+        <div className="text-xs text-gray-400 mb-2">
           Mint {cfg?.faucetAmount || "10,000"} test USDT to your KAIA address.
         </div>
-        <div className="text-xs text-pendle-gray-500">
+        <div className="text-xs text-gray-500">
           This faucet works with mock USDT deployed on KAIA testnet.
         </div>
       </div>
@@ -81,22 +86,22 @@ export function FaucetBox() {
       <button 
         onClick={onMint} 
         disabled={busy || !cfg} 
-        className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-xl px-3 py-3 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
       >
-        {busy ? "Minting..." : "Get Mock USDT"}
+        {busy ? "Minting..." : COPY.faucetCta}
       </button>
       
       {msg && (
-        <div className="glass-panel p-3 rounded-lg">
-          <div className="text-xs text-pendle-gray-400 break-all">{msg}</div>
+        <div className="bg-white/5 border border-white/10 p-3 rounded-lg">
+          <div className="text-xs text-gray-400 break-all">{msg}</div>
         </div>
       )}
       
       {cfg && cfg.faucetToken && (
-        <div className="text-xs text-pendle-gray-500">
-          <div>Token: <span className="font-mono text-pendle-gray-400">{cfg.faucetToken}</span></div>
-          <div>Amount: <span className="text-pendle-gray-400">{cfg.faucetAmount || "10000"} USDT</span></div>
-          <div className="mt-2 text-pendle-gray-600">Using simplified mint(to, amount) signature</div>
+        <div className="text-xs text-gray-500">
+          <div>Token: <span className="font-mono text-gray-400">{cfg.faucetToken}</span></div>
+          <div>Amount: <span className="text-gray-400">{cfg.faucetAmount || "10000"} USDT</span></div>
+          <div className="mt-2 text-gray-600">Using simplified mint(to, amount) signature</div>
         </div>
       )}
     </div>

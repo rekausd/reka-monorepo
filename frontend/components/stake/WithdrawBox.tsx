@@ -7,6 +7,8 @@ import { useToast } from "@/components/Toast";
 import { detectInjectedKaia } from "@/lib/wallet";
 import { epochNow } from "@/lib/epoch";
 import { useAppConfig } from "@/hooks/useAppConfig";
+import { COPY } from "@/lib/copy";
+import { track } from "@/lib/analytics";
 
 export function WithdrawBox(){
   const { epoch, end } = epochNow();
@@ -139,6 +141,7 @@ export function WithdrawBox(){
       showOk("Processing withdrawal request...");
       await tx.wait();
       showOk(`Withdrawal requested! It will be claimable after epoch #${epoch} ends.`);
+      track("withdraw_request", { amount: Number(amt||"0") });
       setAmt("");
       await refresh();
     } catch(e: any) { 
@@ -186,6 +189,7 @@ export function WithdrawBox(){
       showOk("Processing claim...");
       await tx.wait();
       showOk("Withdrawal claimed successfully!");
+      track("withdraw_claim");
       await refresh();
     } catch(e: any) { 
       showErr(e?.shortMessage || e?.message || String(e)); 
@@ -201,9 +205,9 @@ export function WithdrawBox(){
 
   if (!config) {
     return (
-      <div className="space-y-5">
-        <div className="glass-panel p-4 rounded-xl">
-          <div className="text-sm text-pendle-gray-400 mb-1">Status</div>
+      <div className="space-y-3">
+        <div className="bg-white/5 border border-white/10 p-3 rounded-xl">
+          <div className="text-xs text-gray-400 mb-1">Status</div>
           <div className="text-sm font-medium animate-pulse">Loading configuration...</div>
         </div>
       </div>
@@ -211,13 +215,13 @@ export function WithdrawBox(){
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       {toast}
       
       {/* Balance Info */}
-      <div className="glass-panel p-4 rounded-xl">
-        <div className="text-sm text-pendle-gray-400 mb-1">Your rkUSDT Balance</div>
-        <div className="text-xl font-bold text-gradient"><NumberFmt v={rkNum}/></div>
+      <div className="bg-white/5 border border-white/10 p-3 rounded-xl">
+        <div className="text-xs text-gray-400 mb-1">Your rkUSDT Balance</div>
+        <div className="text-lg font-bold"><NumberFmt v={rkNum}/></div>
       </div>
 
       {/* Request Withdrawal */}
@@ -227,8 +231,8 @@ export function WithdrawBox(){
           type="number" 
           min="0" 
           step="0.000001"
-          placeholder="Amount of rkUSDT to withdraw" 
-          className="input-glow w-full px-4 py-3 text-white placeholder-pendle-gray-500"
+          placeholder={COPY.labels.withdrawAmount} 
+          className="w-full bg-transparent border border-white/15 rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-white/40 transition-colors placeholder-gray-500"
           value={amt} 
           onChange={e=>setAmt(e.target.value)} 
           disabled={busy}
@@ -236,15 +240,15 @@ export function WithdrawBox(){
         <button 
           onClick={onRequest} 
           disabled={busy || parseAmt()===0n || rkBal < parseAmt()} 
-          className="btn-gradient w-full py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          className="w-full rounded-xl px-3 py-3 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
         >
-          {busy ? "Processing..." : "Request Withdrawal"}
+          {busy ? "Processing..." : COPY.withdrawTab}
         </button>
       </div>
 
       {/* Pending & Claimable Info */}
       {(pendingAmt > 0n || claimableAmt > 0n) && (
-        <div className="glass-panel p-4 rounded-xl space-y-3">
+        <div className="bg-white/5 border border-white/10 p-3 rounded-xl space-y-3">
           {pendingAmt > 0n && (
             <div>
               <div className="text-sm text-pendle-gray-400">Pending Withdrawal</div>
@@ -274,17 +278,17 @@ export function WithdrawBox(){
       <button 
         onClick={onClaim} 
         disabled={busy || !canClaim} 
-        className={`w-full py-3 rounded-xl font-medium transition-all duration-200 ${
+        className={`w-full py-3 rounded-xl text-sm font-medium transition-colors ${
           canClaim 
-            ? "btn-emerald btn-gradient" 
-            : "bg-pendle-gray-800 text-pendle-gray-500 cursor-not-allowed opacity-50"
+            ? "bg-emerald-600 hover:bg-emerald-700" 
+            : "bg-gray-600 cursor-not-allowed opacity-50"
         }`}
       >
         {busy ? "Processing..." : canClaim ? "Claim Withdrawal" : "No withdrawals to claim"}
       </button>
 
       {/* Info */}
-      <div className="glass-panel p-3 rounded-lg">
+      <div className="bg-white/5 border border-white/10 p-3 rounded-lg">
         <p className="text-xs text-pendle-gray-400">
           Withdrawals are processed at epoch boundaries. Current epoch ends: {new Date(end).toUTCString()}
         </p>

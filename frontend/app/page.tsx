@@ -1,21 +1,24 @@
 "use client";
 import { Totals } from "@/components/dashboard/Totals";
 import { Epoch } from "@/components/dashboard/Epoch";
-import { Holdings } from "@/components/dashboard/Holdings";
-import { TVLChart } from "@/components/dashboard/TVLChart";
+import { COPY } from "@/lib/copy";
+import { ApyBadge } from "@/components/rates/ApyBadge";
+import { EarningsEstimator } from "@/components/rates/EarningsEstimator";
+import { RateTable } from "@/components/rates/RateTable";
+import { HeroSection } from "@/components/HeroSection";
 
 export default function Page(){
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      <HeroSection />
       <Totals />
-      <div className="grid md:grid-cols-2 gap-5">
-        <Epoch />
-        <Holdings />
+      <div className="flex items-center gap-2">
+        <ApyBadge />
       </div>
-      <div className="card p-5">
-        <div className="text-sm text-gray-400 mb-2">TVL (sampled)</div>
-        <TVLChart />
-      </div>
+      <EarningsEstimator />
+      <Epoch />
+      <RateTable />
+      <div className="text-xs text-gray-400 text-center mt-6">{COPY.footerNote}</div>
     </div>
   );
 }

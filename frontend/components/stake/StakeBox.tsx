@@ -7,6 +7,9 @@ import { useToast } from "@/components/Toast";
 import { NumberFmt } from "@/components/Number";
 import { detectInjectedKaia } from "@/lib/wallet";
 import { useAppConfig } from "@/hooks/useAppConfig";
+import { COPY } from "@/lib/copy";
+import { track } from "@/lib/analytics";
+import { getVariant } from "@/lib/ab";
 
 export function StakeBox(){
   const [addr0, setAddr] = useState<string>("");
@@ -93,6 +96,8 @@ export function StakeBox(){
         showOk("Processing deposit with Permit2...");
         await tx.wait();
         showOk("✅ Deposited via Permit2 (direct)");
+        track("deposit_success", { amount: Number(amt) });
+        track("ab_conv_deposit", { variant: getVariant() });
         await refresh();
         return;
       } catch (e: any) {
@@ -122,6 +127,8 @@ export function StakeBox(){
         }
 
         showOk("✅ Deposited via Permit2 (generic)");
+        track("deposit_success", { amount: Number(amt) });
+        track("ab_conv_deposit", { variant: getVariant() });
         await refresh();
         return;
       } catch (e: any) {
@@ -142,6 +149,8 @@ export function StakeBox(){
       await txB.wait();
       
       showOk("✅ Deposited (legacy approve)");
+      track("deposit_success", { amount: Number(amt) });
+      track("ab_conv_deposit", { variant: getVariant() });
       await refresh();
     } catch (err: any) {
       showErr(err?.shortMessage || err?.message || String(err));
@@ -156,9 +165,9 @@ export function StakeBox(){
 
   if (!config) {
     return (
-      <div className="space-y-5">
-        <div className="glass-panel p-4 rounded-xl">
-          <div className="text-sm text-pendle-gray-400 mb-1">Status</div>
+      <div className="space-y-3">
+        <div className="bg-white/5 border border-white/10 p-3 rounded-xl">
+          <div className="text-xs text-gray-400 mb-1">Status</div>
           <div className="text-sm font-medium animate-pulse">Loading configuration...</div>
         </div>
       </div>
@@ -166,21 +175,21 @@ export function StakeBox(){
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       {toast}
-      <div className="glass-panel p-4 rounded-xl">
-        <div className="text-sm text-pendle-gray-400 mb-1">Status</div>
-        <div className="text-sm font-medium">{addr0 ? `Connected: ${addr0.slice(0,6)}...${addr0.slice(-4)}` : "Connect KAIA Wallet via header"}</div>
+      <div className="bg-white/5 border border-white/10 p-3 rounded-xl">
+        <div className="text-xs text-gray-400 mb-1">Status</div>
+        <div className="text-sm">{addr0 ? `Connected: ${addr0.slice(0,6)}...${addr0.slice(-4)}` : "Connect wallet above"}</div>
       </div>
       
-      <div className="glass-panel p-4 rounded-xl space-y-3">
+      <div className="bg-white/5 border border-white/10 p-3 rounded-xl space-y-2">
         <div className="flex justify-between items-center">
-          <span className="text-sm text-pendle-gray-400">USDT Balance</span>
-          <span className="text-lg font-semibold text-gradient"><NumberFmt v={balNum}/></span>
+          <span className="text-xs text-gray-400">USDT Balance</span>
+          <span className="text-sm font-semibold"><NumberFmt v={balNum}/></span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-sm text-pendle-gray-400">rkUSDT Balance</span>
-          <span className="text-lg font-semibold text-gradient"><NumberFmt v={rkNum}/></span>
+          <span className="text-xs text-gray-400">rkUSDT Balance</span>
+          <span className="text-sm font-semibold"><NumberFmt v={rkNum}/></span>
         </div>
       </div>
       
@@ -188,28 +197,28 @@ export function StakeBox(){
         <input 
           type="number" 
           min="0" 
-          placeholder="Enter amount to stake" 
-          className="input-glow w-full px-4 py-3 text-white placeholder-pendle-gray-500"
+          placeholder={COPY.labels.depositAmount} 
+          className="w-full bg-transparent border border-white/15 rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-white/40 transition-colors placeholder-gray-500"
           value={amt} 
           onChange={e=>setAmt(e.target.value)} 
         />
         <button 
           onClick={permitAndDeposit} 
           disabled={busy || need===0n || bal<need} 
-          className="btn-emerald btn-gradient w-full py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          className="w-full rounded-xl px-3 py-3 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
         >
-          {busy ? "Processing..." : "Permit & Deposit"}
+          {busy ? "Processing..." : COPY.depositCta}
         </button>
       </div>
       
       {need>0n && bal<need && 
-        <div className="glass-panel px-3 py-2 rounded-lg border-red-500/30 border">
+        <div className="bg-red-500/10 border border-red-500/30 px-3 py-2 rounded-lg">
           <span className="text-xs text-red-400">Insufficient balance</span>
         </div>
       }
       
-      <div className="glass-panel p-3 rounded-lg">
-        <p className="text-xs text-pendle-gray-400">1 rkUSDT = 1 USDT at mint (epoch accounting applies on withdrawal)</p>
+      <div className="bg-white/5 border border-white/10 p-3 rounded-lg">
+        <p className="text-xs text-gray-400">1 rkUSDT = 1 USDT at mint (epoch accounting applies on withdrawal)</p>
       </div>
     </div>
   );

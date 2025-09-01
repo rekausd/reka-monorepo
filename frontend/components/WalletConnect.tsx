@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { connectKaiaWallet } from "@/lib/wallet";
+import { COPY } from "@/lib/copy";
 
 export function WalletConnect(){
   const [addr, setAddr] = useState<string>("");
@@ -16,30 +17,30 @@ export function WalletConnect(){
 
   if (addr) {
     return (
-      <div className="flex items-center gap-3">
-        <div className="glass-panel px-4 py-2 flex items-center gap-2">
-          <span className="text-xs text-pendle-gray-400">KAIA:</span>
-          <span className="text-xs font-mono text-gradient">{addr.slice(0,6)}...{addr.slice(-4)}</span>
+      <div className="flex items-center gap-2 w-full">
+        <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2">
+          <span className="text-xs text-gray-400">KAIA:</span>
+          <span className="text-xs font-mono">{addr.slice(0,6)}...{addr.slice(-4)}</span>
         </div>
         <button 
           onClick={()=>setAddr("")} 
-          className="px-4 py-2 rounded-xl bg-gradient-to-r from-pendle-gray-700 to-pendle-gray-600 hover:from-pendle-gray-600 hover:to-pendle-gray-500 text-sm font-medium transition-all duration-200 hover:shadow-lg"
+          className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors"
         >
-          Disconnect
+          {COPY.labels.disconnect}
         </button>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="w-full">
       <button 
         onClick={onConnect} 
-        className="btn-emerald btn-gradient text-sm font-medium rounded-xl px-5 py-2.5 shadow-lg"
+        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl px-4 py-2.5 transition-colors"
       >
-        Connect KAIA Wallet
+        {COPY.labels.connect}
       </button>
-      {err && <span className="ml-2 text-xs text-red-400/80 backdrop-blur-sm">{err}</span>}
+      {err && <div className="mt-2 text-xs text-red-400">{err}</div>}
     </div>
   );
 }
