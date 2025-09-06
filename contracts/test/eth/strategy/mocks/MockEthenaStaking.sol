@@ -2,16 +2,15 @@
 pragma solidity ^0.8.24;
 
 import {IEthenaStakingAdapter} from "reka-common/adapters/IEthenaStakingAdapter.sol";
-import {IERC20} from "reka-common/utils/IERC20.sol";
-import {MockSUSDe} from "./MockTokens.sol";
+import {MockUSDe, MockSUSDe} from "./MockTokens.sol";
 
 contract MockEthenaStaking is IEthenaStakingAdapter {
-    IERC20 public USDe;
+    MockUSDe public USDe;
     MockSUSDe public sUSDe;
 
     uint256 public exchangeRateWad = 1e18; // sUSDe:USDe = 1 initially
 
-    constructor(address usde, address s) { USDe = IERC20(usde); sUSDe = MockSUSDe(s); }
+    constructor(address usde, address s) { USDe = MockUSDe(usde); sUSDe = MockSUSDe(s); }
 
     function setExchangeRate(uint256 wad) external { exchangeRateWad = wad; }
 
@@ -19,17 +18,20 @@ contract MockEthenaStaking is IEthenaStakingAdapter {
         require(USDe.transferFrom(msg.sender, address(this), usdeAmount), "pull");
         // shares = usdeAmount / rate
         sharesMinted = usdeAmount * 1e18 / exchangeRateWad;
-        sUSDe.mint(msg.sender, sharesMinted);
+        // Adapter holds the sUSDe it stakes on behalf of the strategy
+        sUSDe.mint(address(this), sharesMinted);
     }
 
     function unstake(uint256 sShares) external returns (uint256 usdeOut) {
-        sUSDe.burn(msg.sender, sShares);
+        sUSDe.burn(address(this), sShares);
         usdeOut = sShares * exchangeRateWad / 1e18;
+        // For testing, materialize USDe out of the staking position
+        USDe.mint(address(this), usdeOut);
         require(USDe.transfer(msg.sender, usdeOut), "push");
     }
 
     function sUSDeBalance() external view returns (uint256) {
-        return sUSDe.balanceOf(msg.sender);
+        return sUSDe.balanceOf(address(this));
     }
 
     function previewRedeem(uint256 sShares) external view returns (uint256) {

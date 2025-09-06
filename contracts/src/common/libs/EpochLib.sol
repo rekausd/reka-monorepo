@@ -11,6 +11,11 @@ library EpochLib {
         uint64 epochDuration;
         uint64 nextRolloverAt;
     }
+    
+    function getCurrentEpoch(EpochState storage s) internal view returns (uint64) {
+        if (block.timestamp < s.epochStart) return 0;
+        return uint64((block.timestamp - s.epochStart) / s.epochDuration);
+    }
 
     function init(EpochState storage s) internal {
         s.currentEpoch = 0;

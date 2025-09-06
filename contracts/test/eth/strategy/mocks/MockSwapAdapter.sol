@@ -8,6 +8,11 @@ contract MockSwapAdapter is ISwapAdapter {
     IERC20 public immutable USDT;
     IERC20 public immutable USDe;
     uint256 public rateUSDTtoUSDe = 1e12; // 6d->18d (1:1)
+    
+    // Test helpers to track last swap parameters
+    uint256 public lastMinOut;
+    uint256 public lastAmountIn;
+    uint256 public quoteRatio = 1e18; // For testing
 
     constructor(address usdt, address usde) {
         USDT = IERC20(usdt);
@@ -15,6 +20,7 @@ contract MockSwapAdapter is ISwapAdapter {
     }
 
     function setRate(uint256 usdtToUsde) external { rateUSDTtoUSDe = usdtToUsde; }
+    function setQuoteRatio(uint256 ratio) external { quoteRatio = ratio; }
 
     function quoteUSDTtoUSDe(uint256 usdtIn) external view returns (uint256) {
         // 1 USDT(6d) => 1e12 USDe(18d)
@@ -26,6 +32,8 @@ contract MockSwapAdapter is ISwapAdapter {
     }
 
     function swapExactUSDTForUSDe(uint256 usdtIn, uint256 minUsdeOut, address to) external returns (uint256) {
+        lastAmountIn = usdtIn;
+        lastMinOut = minUsdeOut;
         require(USDT.transferFrom(msg.sender, address(this), usdtIn), "pull USDT");
         uint256 out = usdtIn * 1e12;
         require(out >= minUsdeOut, "min");
@@ -34,6 +42,8 @@ contract MockSwapAdapter is ISwapAdapter {
     }
 
     function swapExactUSDeForUSDT(uint256 usdeIn, uint256 minUsdtOut, address to) external returns (uint256) {
+        lastAmountIn = usdeIn;
+        lastMinOut = minUsdtOut;
         require(USDe.transferFrom(msg.sender, address(this), usdeIn), "pull USDe");
         uint256 out = usdeIn / 1e12;
         require(out >= minUsdtOut, "min");

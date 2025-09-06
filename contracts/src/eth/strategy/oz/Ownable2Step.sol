@@ -28,8 +28,13 @@ abstract contract Ownable2Step {
     }
 
     function transferOwnership(address newOwner) public onlyOwner {
-        _pendingOwner = newOwner;
-        emit OwnershipTransferStarted(_owner, newOwner);
+        require(newOwner != address(0), "owner=0");
+        address prev = _owner;
+        _owner = newOwner;
+        _pendingOwner = address(0);
+        // Emit both events for compatibility
+        emit OwnershipTransferStarted(prev, newOwner);
+        emit OwnershipTransferred(prev, newOwner);
     }
 
     function acceptOwnership() public {
