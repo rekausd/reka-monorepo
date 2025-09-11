@@ -4,7 +4,7 @@ import { ethers } from "ethers";
 import { addresses, getVaultContract, getRkUSDTContract, VaultABI, ERC20 } from "@/lib/contracts";
 import { NumberFmt } from "@/components/Number";
 import { useToast } from "@/components/Toast";
-import { detectInjectedKaia } from "@/lib/wallet";
+import { getSigner } from "@/lib/wallet/kaia";
 import { epochNow } from "@/lib/epoch";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { COPY } from "@/lib/copy";
@@ -22,12 +22,11 @@ export function WithdrawBox(){
   const [busy, setBusy] = useState(false);
   const { node: toast, showOk, showErr } = useToast();
 
-  const inj = detectInjectedKaia();
-  const provider = useMemo(()=> inj ? new ethers.BrowserProvider(inj, "any") : null, [inj]);
-  const signer = useMemo(async ()=> {
-    if (!provider) return null;
-    try { return await provider.getSigner(); } catch { return null; }
-  }, [provider]);
+  const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  
+  useEffect(() => {
+    getSigner().then(setSigner).catch(() => setSigner(null));
+  }, []);
 
   const config = useAppConfig();
 

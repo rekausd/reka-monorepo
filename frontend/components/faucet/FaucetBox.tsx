@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { ethers } from "ethers";
 import { useToast } from "@/components/Toast";
-import { detectInjectedKaia } from "@/lib/wallet";
+import { getSigner } from "@/lib/wallet/kaia";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { ERC20 } from "@/lib/contracts";
 import { COPY } from "@/lib/copy";
@@ -20,9 +20,11 @@ export function FaucetBox() {
   const [msg, setMsg] = useState("");
   const { node: toast, showOk, showErr } = useToast();
 
-  const inj = detectInjectedKaia();
-  const provider = useMemo(() => inj ? new ethers.BrowserProvider(inj, "any") : null, [inj]);
-  const signerP = useMemo(() => provider ? provider.getSigner() : null, [provider]);
+  const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  
+  useMemo(() => {
+    getSigner().then(setSigner).catch(() => setSigner(null));
+  }, []);
 
   async function onMint() {
     if (!cfg) { 
@@ -30,7 +32,6 @@ export function FaucetBox() {
       return; 
     }
     
-    const signer = await signerP;
     if (!signer) { 
       setMsg("Connect KAIA Wallet first."); 
       return; 

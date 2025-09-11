@@ -2,10 +2,13 @@
 import Link from "next/link";
 import { WalletConnect } from "@/components/WalletConnect";
 import { COPY } from "@/lib/copy";
+import { useMiniApp } from "@/lib/miniapp/init";
 
 export function Header(){
+  const { isInMiniApp } = useMiniApp();
+  
   return (
-    <header className="border-b border-white/10 backdrop-blur-md">
+    <header className={`border-b border-white/10 backdrop-blur-md ${isInMiniApp ? 'sticky top-0 z-50' : ''}`}>
       <div className="max-w-[480px] mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

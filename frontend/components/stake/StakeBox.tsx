@@ -5,7 +5,7 @@ import { addresses, getUSDTContract, getRkUSDTContract, getVaultContract, getPer
 import { signPermit2, formatPermitDetails, formatTransferDetails } from "@/lib/permit2";
 import { useToast } from "@/components/Toast";
 import { NumberFmt } from "@/components/Number";
-import { detectInjectedKaia } from "@/lib/wallet";
+import { getSigner, getProvider } from "@/lib/wallet/kaia";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { COPY } from "@/lib/copy";
 import { track } from "@/lib/analytics";
@@ -20,12 +20,11 @@ export function StakeBox(){
   const [busy, setBusy] = useState(false);
   const { node: toast, showOk, showErr } = useToast();
 
-  const inj = detectInjectedKaia();
-  const provider = useMemo(()=> inj ? new ethers.BrowserProvider(inj, "any") : null, [inj]);
-  const signer = useMemo(async ()=> {
-    if (!provider) return null;
-    try { return await provider.getSigner(); } catch { return null; }
-  }, [provider]);
+  const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  
+  useEffect(() => {
+    getSigner().then(setSigner).catch(() => setSigner(null));
+  }, []);
 
   const config = useAppConfig();
 
