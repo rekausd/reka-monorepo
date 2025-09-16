@@ -5,47 +5,69 @@ import { addresses, getUSDTContract, getRkUSDTContract, getVaultContract, getPer
 import { signPermit2, formatPermitDetails, formatTransferDetails } from "@/lib/permit2";
 import { useToast } from "@/components/Toast";
 import { NumberFmt } from "@/components/Number";
-import { getSigner, getProvider } from "@/lib/wallet/kaia";
+import { useUnifiedWallet } from "@/hooks/useUnifiedWallet";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { COPY } from "@/lib/copy";
 import { track } from "@/lib/analytics";
 import { getVariant } from "@/lib/ab";
+import { addBalanceRefreshListener, triggerBalanceRefresh } from "@/lib/events";
 
 export function StakeBox(){
   const [addr0, setAddr] = useState<string>("");
   const [dec, setDec] = useState(6);
   const [bal, setBal] = useState<bigint>(0n);
   const [rkBal, setRkBal] = useState<bigint>(0n);
+  const [balLoaded, setBalLoaded] = useState(false);
   const [amt, setAmt] = useState("0");
   const [busy, setBusy] = useState(false);
   const { node: toast, showOk, showErr } = useToast();
-
-  const [signer, setSigner] = useState<ethers.Signer | null>(null);
-  
-  useEffect(() => {
-    getSigner().then(setSigner).catch(() => setSigner(null));
-  }, []);
+  const { isConnected, connect, signer, address } = useUnifiedWallet();
 
   const config = useAppConfig();
 
   async function refresh(){
-    const s = await signer;
-    if (!s || !config) return;
-    
-    const usdt = getUSDTContract(config, s);
-    const rkusdt = getRkUSDTContract(config, s);
-    
-    const a = await s.getAddress();
-    setAddr(a);
-    const [d, b, rk] = await Promise.all([
-      usdt.decimals().catch(()=>6),
-      usdt.balanceOf(a).catch(()=>0n),
-      rkusdt.balanceOf(a).catch(()=>0n)
-    ]);
-    setDec(Number(d)); setBal(b); setRkBal(rk);
+    // Always reflect connection status first
+    if (address) setAddr(address);
+
+    // Need config to proceed further
+    if (!config) return;
+
+    // If token addresses are not configured, show zeros but don't error
+    let usdtAddr = ""; let rkAddr = "";
+    try {
+      const a = addresses(config);
+      usdtAddr = a.kaiaUSDT || "";
+      rkAddr = a.rkUSDT || "";
+    } catch {
+      // Keep defaults
+    }
+    if (!usdtAddr || !rkAddr || !signer) {
+      // With missing token addresses or signer, we cannot query contracts; keep defaults
+      setBalLoaded(false);
+      return;
+    }
+
+    const usdt = getUSDTContract(config, signer);
+    const rkusdt = getRkUSDTContract(config, signer);
+
+    try {
+      const [d, b, rk] = await Promise.all([
+        usdt.decimals().catch(()=>6),
+        usdt.balanceOf(address!).catch(()=>0n),
+        rkusdt.balanceOf(address!).catch(()=>0n)
+      ]);
+      setDec(Number(d)); setBal(b); setRkBal(rk);
+      setBalLoaded(true);
+    } catch {
+      setBalLoaded(false);
+    }
   }
 
-  useEffect(()=>{ refresh(); }, [signer, config]);
+  useEffect(()=>{ refresh(); }, [signer, config, address]);
+  useEffect(()=>{
+    // Listen for global balance refresh events (e.g., after faucet mint)
+    return addBalanceRefreshListener(() => { refresh(); });
+  }, [signer, config, address]);
 
   function parseAmt(): bigint {
     const v = Number(amt || "0");
@@ -54,11 +76,22 @@ export function StakeBox(){
   }
 
   async function permitAndDeposit(){
-    const s = await signer;
+    if (!isConnected || !signer) {
+      showErr("Connecting wallet...");
+      try {
+        await connect();
+      } catch (err) {
+        showErr("Failed to connect wallet");
+        return;
+      }
+    }
+
+    const s = signer;
     if (!s) {
-      showErr("Please connect your wallet first");
+      showErr("Unable to get wallet signer");
       return;
     }
+
     if (!config) {
       showErr("Configuration not loaded");
       return;
@@ -97,7 +130,9 @@ export function StakeBox(){
         showOk("✅ Deposited via Permit2 (direct)");
         track("deposit_success", { amount: Number(amt) });
         track("ab_conv_deposit", { variant: getVariant() });
+        setAmt("");
         await refresh();
+        triggerBalanceRefresh();
         return;
       } catch (e: any) {
         console.log("depositWithPermit2 not available, trying generic path...");
@@ -128,7 +163,9 @@ export function StakeBox(){
         showOk("✅ Deposited via Permit2 (generic)");
         track("deposit_success", { amount: Number(amt) });
         track("ab_conv_deposit", { variant: getVariant() });
+        setAmt("");
         await refresh();
+        triggerBalanceRefresh();
         return;
       } catch (e: any) {
         console.log("Generic Permit2 path failed:", e);
@@ -150,7 +187,9 @@ export function StakeBox(){
       showOk("✅ Deposited (legacy approve)");
       track("deposit_success", { amount: Number(amt) });
       track("ab_conv_deposit", { variant: getVariant() });
+      setAmt("");
       await refresh();
+      triggerBalanceRefresh();
     } catch (err: any) {
       showErr(err?.shortMessage || err?.message || String(err));
     } finally {
@@ -210,7 +249,7 @@ export function StakeBox(){
         </button>
       </div>
       
-      {need>0n && bal<need && 
+      {balLoaded && need>0n && bal<need && 
         <div className="bg-red-500/10 border border-red-500/30 px-3 py-2 rounded-lg">
           <span className="text-xs text-red-400">Insufficient balance</span>
         </div>

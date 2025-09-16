@@ -2,26 +2,45 @@
 import "@kaiachain/ethers-ext";
 import { ethers } from "ethers";
 import { useState, useEffect, useCallback } from "react";
-import { useMiniApp } from "@/lib/miniapp/init";
+import { getWalletProvider } from "@/lib/line/dappSdk";
 
 let currentProvider: ethers.BrowserProvider | null = null;
 let currentSigner: ethers.Signer | null = null;
 let currentAccount: string | null = null;
+let miniDappProvider: any | null = null;
+
+// Check Mini Dapp mode at module level
+export const isMiniDappMode = !!(process.env.NEXT_PUBLIC_LIFF_ID && process.env.NEXT_PUBLIC_DAPP_CLIENT_ID);
 
 function detectKaiaProvider(): any | null {
   if (typeof window === "undefined") return null;
+
+  // If in Mini Dapp mode, don't look for KAIA wallet
+  if (isMiniDappMode) {
+    return null; // Will use Mini Dapp SDK provider
+  }
+
   const w = window as any;
   return w.kaia ?? w.klaytn ?? null;
 }
 
 export async function getProvider(): Promise<ethers.BrowserProvider> {
   if (currentProvider) return currentProvider;
-  
+
+  if (isMiniDappMode) {
+    // Use Mini Dapp SDK provider
+    if (!miniDappProvider) {
+      miniDappProvider = await getWalletProvider();
+    }
+    currentProvider = new ethers.BrowserProvider(miniDappProvider, "any");
+    return currentProvider;
+  }
+
   const injected = detectKaiaProvider();
   if (!injected) {
     throw new Error("Kaia Wallet not found. Please install Kaia Wallet.");
   }
-  
+
   currentProvider = new ethers.BrowserProvider(injected, "any");
   return currentProvider;
 }
@@ -39,18 +58,42 @@ export async function getSigner(): Promise<ethers.Signer> {
 }
 
 export async function connect(): Promise<{ address: string; chainId: number }> {
+  if (isMiniDappMode) {
+    // Use Mini Dapp SDK provider
+    if (!miniDappProvider) {
+      miniDappProvider = await getWalletProvider();
+    }
+
+    // Request accounts through Mini Dapp SDK (using kaia_requestAccounts)
+    const accounts = await miniDappProvider.request({ method: 'kaia_requestAccounts' });
+    const address = accounts?.[0];
+
+    if (!address) throw new Error("No accounts found");
+
+    currentAccount = address;
+    const provider = new ethers.BrowserProvider(miniDappProvider, "any");
+    currentProvider = provider;
+    currentSigner = await provider.getSigner();
+
+    const network = await provider.getNetwork();
+    const chainId = Number(network.chainId);
+
+    return { address, chainId };
+  }
+
+  // Fallback to regular Kaia wallet flow
   const provider = await getProvider();
   const accounts = await provider.send("eth_requestAccounts", []);
   const address = accounts?.[0];
-  
+
   if (!address) throw new Error("No accounts found");
-  
+
   currentAccount = address;
   currentSigner = await provider.getSigner();
-  
+
   const network = await provider.getNetwork();
   const chainId = Number(network.chainId);
-  
+
   // Check chain ID
   const expectedChainId = Number(process.env.NEXT_PUBLIC_KAIA_CHAIN_ID || 8217);
   if (chainId !== expectedChainId) {
@@ -67,7 +110,7 @@ export async function connect(): Promise<{ address: string; chainId: number }> {
       throw new Error(`Please switch to Kaia chain (${expectedChainId})`);
     }
   }
-  
+
   return { address, chainId };
 }
 
@@ -75,9 +118,15 @@ export function disconnect() {
   currentProvider = null;
   currentSigner = null;
   currentAccount = null;
+  miniDappProvider = null;
 }
 
 export async function getAccounts(): Promise<string[]> {
+  if (isMiniDappMode) {
+    // Mini Dapp SDK doesn't auto-connect, return empty
+    return currentAccount ? [currentAccount] : [];
+  }
+
   const provider = await getProvider();
   const accounts = await provider.send("eth_accounts", []);
   return accounts || [];
@@ -94,7 +143,6 @@ export function useKaiaWallet() {
   const [chainId, setChainId] = useState<number>(0);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string>("");
-  const { isInMiniApp } = useMiniApp();
   
   const handleConnect = useCallback(async () => {
     setIsConnecting(true);
@@ -117,7 +165,10 @@ export function useKaiaWallet() {
   }, []);
   
   useEffect(() => {
-    // Auto-check connection on mount
+    // Don't auto-check connection for Mini Dapp mode
+    if (isMiniDappMode) return;
+
+    // Auto-check connection on mount (for regular wallet mode)
     getAccounts().then(accounts => {
       if (accounts[0]) {
         setAddress(accounts[0]);
@@ -125,7 +176,9 @@ export function useKaiaWallet() {
       }
     }).catch(() => {});
     
-    // Listen for account changes
+    // Listen for account changes (skip for Mini Dapp mode)
+    if (isMiniDappMode) return;
+
     const injected = detectKaiaProvider();
     if (injected) {
       const handleAccountsChanged = (accounts: string[]) => {
@@ -159,6 +212,6 @@ export function useKaiaWallet() {
     isConnected: !!address,
     connect: handleConnect,
     disconnect: handleDisconnect,
-    isInMiniApp
+    isInMiniApp: isMiniDappMode
   };
 }

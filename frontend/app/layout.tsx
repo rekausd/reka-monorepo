@@ -5,7 +5,9 @@ import { Footer } from "@/components/Footer";
 import { COPY } from "@/lib/copy";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { ENABLE_VERCEL_INSIGHTS } from "@/lib/flags";
 import { MiniAppGuard } from "@/components/MiniAppGuard";
+import { LiffActionsBar } from "@/components/LiffActions";
 
 export const metadata = { title: COPY.appName, description: COPY.tagline };
 
@@ -21,9 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </main>
           <Footer />
+          <LiffActionsBar />
         </MiniAppGuard>
-        <Analytics />
-        <SpeedInsights />
+        {ENABLE_VERCEL_INSIGHTS && <Analytics />}
+        {ENABLE_VERCEL_INSIGHTS && <SpeedInsights />}
       </body>
     </html>
   );

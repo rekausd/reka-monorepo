@@ -4,11 +4,12 @@ import { ethers } from "ethers";
 import { addresses, getVaultContract, getRkUSDTContract, VaultABI, ERC20 } from "@/lib/contracts";
 import { NumberFmt } from "@/components/Number";
 import { useToast } from "@/components/Toast";
-import { getSigner } from "@/lib/wallet/kaia";
+import { useUnifiedWallet } from "@/hooks/useUnifiedWallet";
 import { epochNow } from "@/lib/epoch";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { COPY } from "@/lib/copy";
 import { track } from "@/lib/analytics";
+import { addBalanceRefreshListener, triggerBalanceRefresh } from "@/lib/events";
 
 export function WithdrawBox(){
   const { epoch, end } = epochNow();
@@ -22,46 +23,40 @@ export function WithdrawBox(){
   const [busy, setBusy] = useState(false);
   const { node: toast, showOk, showErr } = useToast();
 
-  const [signer, setSigner] = useState<ethers.Signer | null>(null);
-  
-  useEffect(() => {
-    getSigner().then(setSigner).catch(() => setSigner(null));
-  }, []);
+  const { isConnected, connect, signer, address } = useUnifiedWallet();
 
   const config = useAppConfig();
 
   async function refresh(){
-    const s = await signer;
-    if (!s || !config) return;
-    
+    if (!signer || !config || !address) return;
+
     try {
-      const vaultContract = getVaultContract(config, s);
-      const rkusdt = getRkUSDTContract(config, s);
-      
-      const a = await s.getAddress(); 
-      setAddr(a);
+      const vaultContract = getVaultContract(config, signer);
+      const rkusdt = getRkUSDTContract(config, signer);
+
+      setAddr(address);
       
       const [d, rb] = await Promise.all([
         rkusdt.decimals().catch(()=>6),
-        rkusdt.balanceOf(a).catch(()=>0n)
+        rkusdt.balanceOf(address).catch(()=>0n)
       ]);
       setDec(Number(d)); 
       setRkBal(rb);
 
       // Try to get pending withdrawal info
       try {
-        const [amt, ep] = await vaultContract.pendingWithdrawal(a);
-        setPendingAmt(amt); 
+        const [amt, ep] = await vaultContract.pendingWithdrawal(address);
+        setPendingAmt(amt);
         setPendingEpoch(Number(ep));
       } catch {
         try {
-          const [amt, ep] = await vaultContract.getPendingWithdrawal(a);
-          setPendingAmt(amt); 
+          const [amt, ep] = await vaultContract.getPendingWithdrawal(address);
+          setPendingAmt(amt);
           setPendingEpoch(Number(ep));
         } catch {
           // Try alternative method names
           try {
-            const amt = await vaultContract.pendingNext(a);
+            const amt = await vaultContract.pendingNext(address);
             setPendingAmt(amt);
             // We don't know the epoch, so assume current
             setPendingEpoch(epoch);
@@ -73,7 +68,7 @@ export function WithdrawBox(){
 
       // Try to get claimable amount
       try {
-        const claimable = await vaultContract.claimable(a);
+        const claimable = await vaultContract.claimable(address);
         setClaimableAmt(claimable);
       } catch {
         // No claimable view available
@@ -83,7 +78,10 @@ export function WithdrawBox(){
     }
   }
 
-  useEffect(()=>{ refresh(); }, [signer, epoch, config]);
+  useEffect(()=>{ refresh(); }, [signer, epoch, config, address]);
+  useEffect(()=>{
+    return addBalanceRefreshListener(() => { refresh(); });
+  }, [signer, epoch, config, address]);
 
   function parseAmt(): bigint {
     const v = Number(amt || "0");
@@ -92,11 +90,22 @@ export function WithdrawBox(){
   }
 
   async function onRequest(){
-    const s = await signer;
+    if (!isConnected || !signer) {
+      showErr("Connecting wallet...");
+      try {
+        await connect();
+      } catch (err) {
+        showErr("Failed to connect wallet");
+        return;
+      }
+    }
+
+    const s = signer;
     if (!s) {
-      showErr("Please connect your wallet first");
+      showErr("Unable to get wallet signer");
       return;
     }
+
     if (!config) {
       showErr("Configuration not loaded");
       return;
@@ -143,6 +152,7 @@ export function WithdrawBox(){
       track("withdraw_request", { amount: Number(amt||"0") });
       setAmt("");
       await refresh();
+      triggerBalanceRefresh();
     } catch(e: any) { 
       showErr(e?.shortMessage || e?.message || String(e)); 
     } finally { 
@@ -151,11 +161,22 @@ export function WithdrawBox(){
   }
 
   async function onClaim(){
-    const s = await signer;
+    if (!isConnected || !signer) {
+      showErr("Connecting wallet...");
+      try {
+        await connect();
+      } catch (err) {
+        showErr("Failed to connect wallet");
+        return;
+      }
+    }
+
+    const s = signer;
     if (!s) {
-      showErr("Please connect your wallet first");
+      showErr("Unable to get wallet signer");
       return;
     }
+
     if (!config) {
       showErr("Configuration not loaded");
       return;
@@ -190,6 +211,7 @@ export function WithdrawBox(){
       showOk("Withdrawal claimed successfully!");
       track("withdraw_claim");
       await refresh();
+      triggerBalanceRefresh();
     } catch(e: any) { 
       showErr(e?.shortMessage || e?.message || String(e)); 
     } finally { 

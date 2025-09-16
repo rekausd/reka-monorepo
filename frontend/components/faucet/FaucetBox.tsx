@@ -2,12 +2,13 @@
 import { useMemo, useState } from "react";
 import { ethers } from "ethers";
 import { useToast } from "@/components/Toast";
-import { getSigner } from "@/lib/wallet/kaia";
+import { useUnifiedWallet } from "@/hooks/useUnifiedWallet";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { ERC20 } from "@/lib/contracts";
 import { COPY } from "@/lib/copy";
 import { track } from "@/lib/analytics";
 import { getVariant } from "@/lib/ab";
+import { triggerBalanceRefresh } from "@/lib/events";
 
 const ABI = [
   ...ERC20,
@@ -19,36 +20,46 @@ export function FaucetBox() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const { node: toast, showOk, showErr } = useToast();
-
-  const [signer, setSigner] = useState<ethers.Signer | null>(null);
-  
-  useMemo(() => {
-    getSigner().then(setSigner).catch(() => setSigner(null));
-  }, []);
+  const { isConnected, connect, signer, provider } = useUnifiedWallet();
 
   async function onMint() {
-    if (!cfg) { 
-      setMsg("Loading config..."); 
-      return; 
+    if (!cfg) {
+      setMsg("Loading config...");
+      return;
     }
-    
-    if (!signer) { 
-      setMsg("Connect KAIA Wallet first."); 
-      return; 
-    }
-    
-    setBusy(true); 
+
+    setBusy(true);
     setMsg("");
 
     try {
-      const me = await signer.getAddress();
+      // Resolve a signer; attempt auto-connect if needed
+      let walletSigner = signer || (provider ? await provider.getSigner() : null);
+      if (!walletSigner) {
+        try {
+          // Try to connect wallet on demand
+          setMsg("Connecting wallet...");
+          await connect();
+        } catch {
+          // ignore here; we will try injected provider next
+        }
+        // Try injected provider directly (KAIA/klaytn)
+        const w = typeof window !== 'undefined' ? (window as any) : undefined;
+        const injected = w && (w.kaia ?? w.klaytn);
+        if (injected) {
+          const browserProvider = new ethers.BrowserProvider(injected, 'any');
+          walletSigner = await browserProvider.getSigner().catch(() => null as any);
+        }
+      }
+      if (!walletSigner) throw new Error("Unable to get wallet signer");
+
+      const me = await walletSigner.getAddress();
       const tokenAddr = cfg.faucetToken && cfg.faucetToken.length > 0 ? cfg.faucetToken : cfg.usdt;
       
       if (!tokenAddr || tokenAddr === "") {
         throw new Error("No token address configured for faucet");
       }
       
-      const c = new ethers.Contract(tokenAddr, ABI, signer);
+      const c = new ethers.Contract(tokenAddr, ABI, walletSigner);
       const decimals = await c.decimals().catch(() => 6);
       const whole = Number(cfg.faucetAmount || "10000");
       const amt = BigInt(Math.round(whole * 10 ** Number(decimals)));
@@ -62,6 +73,8 @@ export function FaucetBox() {
       setMsg(`Success! mint(to, amount) on ${tokenAddr.slice(0, 10)}...`);
       track("faucet_success", { amount: whole });
       track("ab_conv_faucet", { variant: getVariant() });
+      // Notify other views (Stake/Withdraw) to refresh balances
+      triggerBalanceRefresh();
     } catch (e: any) {
       const err = e?.shortMessage || e?.message || String(e);
       showErr(err);
