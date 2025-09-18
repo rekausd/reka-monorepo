@@ -2,6 +2,7 @@
 import { useUnifiedWallet } from "@/hooks/useUnifiedWallet";
 import { WalletMode } from "@/lib/wallet/unified-wallet";
 import { COPY } from "@/lib/copy";
+import { kaiaNetworkTag } from "@/lib/net";
 
 export function WalletConnect() {
   const {
@@ -14,7 +15,8 @@ export function WalletConnect() {
     disconnect,
     walletMode,
     lineProfile,
-    displayName
+    displayName,
+    chainId
   } = useUnifiedWallet();
 
   if (isInitializing) {
@@ -36,11 +38,14 @@ export function WalletConnect() {
               <span className="text-xs text-green-400">👤 {lineProfile.displayName}</span>
             </div>
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-gray-400">
               {walletMode === WalletMode.MINI_DAPP ? "LINE:" : "KAIA:"}
             </span>
             <span className="text-xs font-mono">{displayName}</span>
+            {chainId ? (
+              <span className="text-[10px] text-gray-400">· {kaiaNetworkTag(chainId)}</span>
+            ) : null}
           </div>
         </div>
         <button 

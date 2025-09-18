@@ -1,5 +1,5 @@
 export const COPY = {
-  appName: "ReKaUSD Parking Account",
+  appName: "ReKaUSD",
   tagline: "Deposit USDT, watch your balance grow. Withdraw anytime (processed at epoch).",
   balanceTitle: "My Parking Balance",
   balanceDesc: "Your rkUSDT equals your account balance on KAIA.",

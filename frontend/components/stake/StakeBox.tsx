@@ -10,6 +10,7 @@ import { useAppConfig } from "@/hooks/useAppConfig";
 import { COPY } from "@/lib/copy";
 import { track } from "@/lib/analytics";
 import { getVariant } from "@/lib/ab";
+import { kaiaNetworkTag } from "@/lib/net";
 import { addBalanceRefreshListener, triggerBalanceRefresh } from "@/lib/events";
 
 export function StakeBox(){
@@ -21,7 +22,7 @@ export function StakeBox(){
   const [amt, setAmt] = useState("0");
   const [busy, setBusy] = useState(false);
   const { node: toast, showOk, showErr } = useToast();
-  const { isConnected, connect, signer, address } = useUnifiedWallet();
+  const { isConnected, connect, signer, address, chainId } = useUnifiedWallet();
 
   const config = useAppConfig();
 
@@ -217,7 +218,15 @@ export function StakeBox(){
       {toast}
       <div className="bg-white/5 border border-white/10 p-3 rounded-xl">
         <div className="text-xs text-gray-400 mb-1">Status</div>
-        <div className="text-sm">{addr0 ? `Connected: ${addr0.slice(0,6)}...${addr0.slice(-4)}` : "Connect wallet above"}</div>
+        <div className="text-sm">
+          {addr0 ? (
+            <>
+              Connected: {addr0.slice(0,6)}...{addr0.slice(-4)}{chainId ? ` · ${kaiaNetworkTag(chainId)}` : ""}
+            </>
+          ) : (
+            "Connect wallet above"
+          )}
+        </div>
       </div>
       
       <div className="bg-white/5 border border-white/10 p-3 rounded-xl space-y-2">
