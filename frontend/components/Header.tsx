@@ -20,6 +20,7 @@ export function Header(){
           <nav className="flex items-center gap-4">
             <Link href="/" className="text-sm text-gray-400 hover:text-white">Overview</Link>
             <Link href="/app" className="text-sm text-gray-400 hover:text-white">App</Link>
+            <Link href="/docs" className="text-sm text-gray-400 hover:text-white">Docs</Link>
           </nav>
         </div>
         <div className="mt-2">
