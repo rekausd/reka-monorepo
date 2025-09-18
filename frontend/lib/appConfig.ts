@@ -8,6 +8,9 @@ export type AppConfig = {
   vault: string;
   ethRpc?: string;
   ethStrategy?: string;
+  sepoliaReceiver?: string;
+  sepoliaStartBlock?: number;
+  ccipPanelMaxItems?: number;
   faucetToken?: string;
   faucetAmount?: string;
   kaiaStartBlock?: number;

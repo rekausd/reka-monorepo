@@ -6,6 +6,7 @@ import { ApyBadge } from "@/components/rates/ApyBadge";
 import { EarningsEstimator } from "@/components/rates/EarningsEstimator";
 import { RateTable } from "@/components/rates/RateTable";
 import { HeroSection } from "@/components/HeroSection";
+import { CCIPPanel } from "@/components/ccip/CCIPPanel";
 
 export default function Page(){
   return (
@@ -18,6 +19,7 @@ export default function Page(){
       <EarningsEstimator />
       <Epoch />
       <RateTable />
+      <CCIPPanel />
       <div className="text-xs text-gray-400 text-center mt-6">{COPY.footerNote}</div>
     </div>
   );
